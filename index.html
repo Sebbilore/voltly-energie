@@ -826,7 +826,7 @@ function fetchMarstek(silent) {
       lastFetch=Date.now();
       shareWrite();
       if(!silent)toast('Marstek aktualisiert');
-      if(curTab==='home')rHome();if(curTab==='src')rSrc();
+      if(curTab==='home'){if(silent)patchHome();else rHome();}if(curTab==='src')rSrc();
     }).catch(function(e){if(!silent)toast('Marstek: '+e.message);});
 }
 
@@ -851,6 +851,53 @@ function schedFetch(){
   fi=setInterval(function(){fetchMarstek(true);},(S.fetchSec||15)*1000);
 }
 function fetchAll(){var ic=el('ri');if(ic)ic.className='spin';fetchMarstek(false);setTimeout(function(){var ic=el('ri');if(ic)ic.className='';},1500);}
+
+function patchHome(){
+  var lv=al();if(!lv)return;
+  // Only patch if home is already fully rendered
+  var hcard=el('lv-hcard');var flowEl=el('lv-flow');
+  if(!hcard||!flowEl){rHome();return;}
+  var lv_soc=lv.battery&&lv.battery.soc||0;
+  var chargeW=lv.battery&&lv.battery.chargeW||0;
+  var dischargeW=lv.battery&&lv.battery.dischargeW||0;
+  var isCharging=chargeW>10;var isDischarging=dischargeW>10;
+  var onGrad=isCharging||isDischarging;
+  var grad=isCharging?'linear-gradient(135deg,#FF9500,#FF6B00)':isDischarging?'linear-gradient(135deg,#007AFF,#0051D4)':'';
+  // Update hero card style
+  hcard.style.background=onGrad?grad:'';
+  hcard.style.color=onGrad?'#fff':'';
+  hcard.style.boxShadow=onGrad?'0 4px 24px rgba(0,0,0,.2)':'';
+  // Update watt value
+  var heroW=isCharging?chargeW:isDischarging?dischargeW:0;
+  var wEl=el('hero-sol');if(wEl)wEl.textContent=(heroW/1000).toFixed(2);
+  // Update SOC ring
+  var socRingEl=hcard.querySelector('svg');
+  if(socRingEl){var tmp=div('');tmp.innerHTML=socRing(lv_soc,96,onGrad).outerHTML||'';var newSvg=socRing(lv_soc,96,onGrad);var oldSvg=hcard.querySelector('svg');if(oldSvg)oldSvg.parentNode.replaceChild(newSvg.querySelector?newSvg:newSvg,oldSvg);}
+  // Update flow SVG only
+  var fw=lv.battery&&lv.battery.chargeW||0;
+  var dw=lv.battery&&lv.battery.dischargeW||0;
+  var lw=lv.venus&&lv.venus.load||0;
+  var hausW=lv.venus&&lv.venus.haus||Math.round(fw+dw+Math.max(0,lw));
+  var netExport=lw<0;
+  var W=320,H=185,R=22;
+  var nSol={x:160,y:48},nNet={x:40,y:130},nAku={x:280,y:130},nHaus={x:160,y:130};
+  var cSol='#FF9500',cBat=socCol(lv_soc),cHaus='#AF52DE',cNet=netExport?'#34C759':'#FF3B30';
+  function fl(x1,y1,x2,y2,col,anim){return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round"'+(anim?' stroke-dasharray="7 4" class="fl-line '+anim+'"':'')+'/>';}
+  function fn(cx,cy,ic,val,lbl,col,above){var vY=above?(cy-R-12):(cy+R+14);var lY=above?(cy-R-2):(cy+R+25);return '<g><circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+col+'" opacity=".2"/><text x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle" font-size="18">'+ic+'</text><text x="'+cx+'" y="'+vY+'" text-anchor="middle" font-size="11" font-weight="700" fill="'+col+'">'+val+'</text><text x="'+cx+'" y="'+lY+'" text-anchor="middle" font-size="9.5" fill="#8E8E93">'+lbl+'</text></g>';}
+  function mb(x1,y1,x2,y2,txt,col){var mx=(x1+x2)/2,my=(y1+y2)/2-10;var tw=txt.length*6+10;return '<rect x="'+(mx-tw/2)+'" y="'+(my-9)+'" width="'+tw+'" height="17" rx="8" fill="'+col+'" opacity=".15"/><text x="'+mx+'" y="'+(my+4)+'" text-anchor="middle" font-size="10" font-weight="700" fill="'+col+'">'+txt+'</text>';}
+  var newSvg='<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
+    +fl(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'var(--sep2)',fw>10?'active-d':'')
+    +fl(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'var(--sep2)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'')
+    +fl(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,dw>10?cBat:'var(--sep2)',dw>10?'active-l':'')
+    +(Math.abs(lw)>10?mb(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(Math.round(lw))+'W',cNet):'')
+    +(dw>10?mb(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,dw+'W',cBat):'')
+    +fn(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true)
+    +fn(nNet.x,nNet.y,'⚡',Math.abs(Math.round(lw))+'W',netExport?'Einspeisung':'Netz',cNet)
+    +fn(nHaus.x,nHaus.y,'🏠',hausW+'W','Haus',cHaus)
+    +fn(nAku.x,nAku.y,'🔋',lv_soc+'%',dw>10?'entlädt':'Akku',cBat)
+    +'</svg>';
+  flowEl.innerHTML=newSvg;
+}
 // Always refresh when app comes back to foreground (even if interval is running)
 document.addEventListener('visibilitychange',function(){
   if(!document.hidden&&S.marstekToken&&Date.now()-lastFetch>4000){fetchMarstek(true);}
@@ -888,7 +935,7 @@ function startGuestMode(pin){
       live.source='guest';
       lastFetch=new Date(d.updated_at).getTime()||Date.now();
       if(d.entries&&d.entries.length){E=d.entries;svE();}
-      if(curTab==='home')rHome();if(curTab==='src')rSrc();if(curTab==='trnd')rTrnd();
+      if(curTab==='home')patchHome();if(curTab==='src')rSrc();if(curTab==='trnd')rTrnd();
     });
   };
   pollGuest();
@@ -1073,7 +1120,7 @@ function rHome(){
     var isCharging=chargeW>10;var isDischarging=dischargeW>10;
     var onGrad=isCharging||isDischarging;
     var grad=isCharging?'linear-gradient(135deg,#FF9500,#FF6B00)':isDischarging?'linear-gradient(135deg,#007AFF,#0051D4)':'';
-    var hcard=div('hc fu2');
+    var hcard=div('hc fu2');hcard.id='lv-hcard';
     if(onGrad)hcard.style.cssText+='background:'+grad+';color:#fff;box-shadow:0 4px 24px rgba(0,0,0,.2)';
     var ageSec=lastFetch?Math.round((Date.now()-lastFetch)/1000):null;
     var ageStr=ageSec===null?'':(ageSec<5?'gerade ✓':'vor '+(ageSec<60?ageSec+'s':Math.round(ageSec/60)+'min'));
@@ -1162,7 +1209,7 @@ function rHome(){
     var flowCard=div('card fu3','padding:14px 14px 12px');
     var fcTitle=div('','font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px');
     fcTitle.textContent='Energiefluss jetzt';flowCard.appendChild(fcTitle);
-    var svgWrap=div('','overflow:visible');
+    var svgWrap=div('','overflow:visible');svgWrap.id='lv-flow';
     // line endpoints stop at circle edge
     svgWrap.innerHTML='<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
       // lines between node edges
