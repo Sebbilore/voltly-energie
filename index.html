@@ -38,6 +38,13 @@
       return _fbDb.collection('users').doc(userId).collection('entries')
         .orderBy('date','desc').get()
         .then(function(snap){ return snap.docs.map(function(d){ return d.data(); }); });
+    },
+    saveConfig: function(userId, key, data) {
+      return _fbDb.collection('users').doc(userId).collection('config').doc(key).set(data, {merge:true});
+    },
+    loadConfig: function(userId, key) {
+      return _fbDb.collection('users').doc(userId).collection('config').doc(key).get()
+        .then(function(d){ return d.exists ? d.data() : null; });
     }
   };
 
@@ -479,6 +486,23 @@ var CLOUD = {
     if (!window.FB || !currentUser || currentUser.id === 'local') return Promise.resolve([]);
     return window.FB.loadEntries(currentUser.id).catch(function(e) { console.warn('Firestore load:', e); return []; });
   },
+  saveSettings: function(settings) {
+    if (!window.FB || !currentUser || currentUser.id === 'local') return Promise.resolve();
+    var safe = Object.assign({}, settings);
+    return window.FB.saveConfig(currentUser.id, 'settings', safe).catch(function(e) { console.warn('Firestore settings save:', e); });
+  },
+  loadSettings: function() {
+    if (!window.FB || !currentUser || currentUser.id === 'local') return Promise.resolve(null);
+    return window.FB.loadConfig(currentUser.id, 'settings').catch(function() { return null; });
+  },
+  saveAcc: function(accData) {
+    if (!window.FB || !currentUser || currentUser.id === 'local') return Promise.resolve();
+    return window.FB.saveConfig(currentUser.id, 'acc', accData).catch(function(){});
+  },
+  loadAcc: function() {
+    if (!window.FB || !currentUser || currentUser.id === 'local') return Promise.resolve(null);
+    return window.FB.loadConfig(currentUser.id, 'acc').catch(function(){ return null; });
+  },
   signOut: function() {
     if (window.FB) window.FB.signOut().catch(function(){});
   }
@@ -497,6 +521,7 @@ function updateAcc(chargeW,dischargeW,loadW){
   if(acc.date!==d){acc={date:d,solar:0,bat:0,grid:0,t:now};return;}
   if(acc.t>0){var h=(now-acc.t)/3600000;acc.solar+=chargeW*h/1000;acc.bat+=dischargeW*h/1000;acc.grid+=Math.max(0,loadW)*h/1000;}
   acc.t=now;
+  svAcc();
 }
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
@@ -564,7 +589,14 @@ function fM(k) { try { return new Date(k+'-01').toLocaleDateString('de-DE',{mont
 function ldE() { try { return JSON.parse(localStorage.getItem(EK)||'[]'); } catch(e) { return []; } }
 function svE() { localStorage.setItem(EK, JSON.stringify(E)); }
 function ldS() { try { return Object.assign({},DEF,JSON.parse(localStorage.getItem(SK)||'{}')); } catch(e) { return Object.assign({},DEF); } }
-function svS() { localStorage.setItem(SK, JSON.stringify(S)); }
+function svS() { localStorage.setItem(SK, JSON.stringify(S)); CLOUD.saveSettings(S); }
+var _accSaveT=0;
+function svAcc() {
+  var now=Date.now();
+  if(now-_accSaveT<60000) return; // max once per minute
+  _accSaveT=now;
+  CLOUD.saveAcc(acc);
+}
 function applyTheme(mode){
   var root=document.documentElement;
   if(mode==='dark')root.setAttribute('data-theme','dark');
@@ -656,9 +688,15 @@ function doSignIn() {
   CLOUD.signIn(email, pass).then(function(data) {
     currentUser = { email: email, id: data.uid || data.user.uid };
     btn.textContent='Anmelden'; btn.disabled=false;
-    bootApp(false);
-    CLOUD.loadEntries().then(function(rows) {
-      if (rows && rows.length) { E = rows; svE(); if(curTab==='home') rHome(); }
+    // Restore settings + acc from Firestore before booting
+    Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc()]).then(function(results) {
+      var cloudS=results[0], cloudAcc=results[1];
+      if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); }
+      if(cloudAcc && cloudAcc.date===today()){ acc=cloudAcc; }
+      bootApp(false);
+      CLOUD.loadEntries().then(function(rows) {
+        if (rows && rows.length) { E = rows; svE(); if(curTab==='home') rHome(); }
+      });
     });
   }).catch(function(e) {
     errEl.style.display='block';
