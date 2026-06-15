@@ -688,15 +688,14 @@ function doSignIn() {
   CLOUD.signIn(email, pass).then(function(data) {
     currentUser = { email: email, id: data.uid || data.user.uid };
     btn.textContent='Anmelden'; btn.disabled=false;
-    // Restore settings + acc from Firestore before booting
-    Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc()]).then(function(results) {
-      var cloudS=results[0], cloudAcc=results[1];
-      if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); }
+    bootApp(false);
+    // Restore from Firestore in background after app started
+    Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
+      var cloudS=results[0], cloudAcc=results[1], rows=results[2];
+      if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); }
       if(cloudAcc && cloudAcc.date===today()){ acc=cloudAcc; }
-      bootApp(false);
-      CLOUD.loadEntries().then(function(rows) {
-        if (rows && rows.length) { E = rows; svE(); if(curTab==='home') rHome(); }
-      });
+      if(rows && rows.length){ E=rows; svE(); }
+      if(curTab==='home')rHome(); if(curTab==='trnd')rTrnd();
     });
   }).catch(function(e) {
     errEl.style.display='block';
@@ -1741,14 +1740,13 @@ function renderWeather(cont,d){
     if (user && !currentUser) {
       currentUser = { email: user.email, id: user.uid };
       if (el('ls') && el('ls').style.display !== 'none') {
-        Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc()]).then(function(results) {
-          var cloudS=results[0], cloudAcc=results[1];
-          if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); }
+        bootApp(false);
+        Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
+          var cloudS=results[0], cloudAcc=results[1], rows=results[2];
+          if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); }
           if(cloudAcc && cloudAcc.date===today()){ acc=cloudAcc; }
-          bootApp(false);
-          CLOUD.loadEntries().then(function(rows) {
-            if (rows && rows.length) { E = rows; svE(); if(curTab==='home')rHome(); if(curTab==='trnd')rTrnd(); }
-          });
+          if(rows && rows.length){ E=rows; svE(); }
+          if(curTab==='home')rHome(); if(curTab==='trnd')rTrnd();
         });
       }
     }
