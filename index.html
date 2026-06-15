@@ -527,7 +527,7 @@ function updateAcc(chargeW,dischargeW,loadW){
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], // multiple selected device IDs
   strompreis:0.32, einspeise:0.082, currency:'EUR',
-  autoFetch:true, fetchSec:15, activeSrc:'combined', chartPeriod:'week', darkMode:'auto' };
+  autoFetch:true, fetchSec:5, activeSrc:'combined', chartPeriod:'week', darkMode:'auto' };
 
 /* ── Demo data ── */
 var DEMO = (function() {
@@ -809,7 +809,7 @@ function fetchMarstek(silent) {
       var loadW=parseFloat(vDev.load||vDev.grid||0); // Grid (W)
       var soc=parseInt(vDev.soc||0);
       var temp=parseFloat(vDev.bat_temp||vDev.temperature||0);
-      var cap=parseFloat(vDev.bat_cap||vDev.capacity||3000);
+      var cap=parseFloat(vDev.bat_cap||vDev.capacity||5000);
       var profit=parseFloat(vDev.profit||0);
       var hausW=Math.max(0,Math.round(pvW+dischargeW+Math.max(0,loadW)-chargeW));
 
@@ -1220,7 +1220,10 @@ function rHome(){
 
   var rfBtn2=document.createElement('button');rfBtn2.className='btn b-fi';rfBtn2.style.width='100%';rfBtn2.innerHTML='↻ Aktualisieren';rfBtn2.onclick=fetchAll;f.appendChild(rfBtn2);
 
-  var hb=el('hb');hb.innerHTML='';hb.appendChild(f);
+  var hb=el('hb');
+  var old=hb.firstChild;
+  var wrap=document.createElement('div');wrap.appendChild(f);
+  if(old){hb.replaceChild(wrap,old);}else{hb.appendChild(wrap);}
   var ncDemo=el('nc-demo-btn');
   if(ncDemo){ncDemo.onclick=function(){demo=true;startDemo();rHome();};}
   setTimeout(function(){mkCH('ch-main','bar',chartData.map(function(d){return d.name;}), [{label:'Solar',data:chartData.map(function(d){return d.solar;}),backgroundColor:'rgba(255,149,0,.85)',borderRadius:5,borderSkipped:false},{label:'Akku',data:chartData.map(function(d){return d.bat;}),backgroundColor:'rgba(0,122,255,.85)',borderRadius:5,borderSkipped:false},{label:'Netz',data:chartData.map(function(d){return d.grid;}),backgroundColor:'rgba(255,59,48,.6)',borderRadius:5,borderSkipped:false}],{barPercentage:.7,categoryPercentage:.8});},80);
@@ -1408,7 +1411,9 @@ function rTrnd(){
 
   addSH(f,'Durchschnittswerte','fu3');f.appendChild(makeCard2([makeRow('☀️','var(--orb)','Ø Solar/Tag',null,avgDay.toFixed(2)+' kWh','var(--or)',false,function(){showTip('Basis für Prognose: '+avgDay.toFixed(2)+' kWh/Tag × 365 = '+(avgDay*365).toFixed(0)+' kWh/Jahr');}),makeRow('💶','var(--grb)','Ø Ersparnis/Tag',null,(cSv/(entries.length||1)).toFixed(2)+' '+cur,'var(--gr)',false,null),makeRow('📅','var(--blb)','Ø pro Monat',null,avgMon.toFixed(2)+' '+cur,'var(--bl)',false,null),makeRow('🎯','var(--pub)','Jahresprognose',null,Math.round(avgDay*365)+' '+cur+'/Jahr','var(--pu)',false,function(){showTip('Realer Wert abhängig von Saison, Verbrauch und Strompreis.');}) ]));
 
-  var tdb=el('tdb');tdb.innerHTML='';tdb.appendChild(f);
+  var tdb=el('tdb');
+  var oldT=tdb.firstChild;var wrapT=document.createElement('div');wrapT.appendChild(f);
+  if(oldT){tdb.replaceChild(wrapT,oldT);}else{tdb.appendChild(wrapT);}
   setTimeout(function(){var cumL=cumData.map(function(e){return fS(e.date);});mkCH('ch-cum','line',cumL,[{label:'kWh',data:cumData.map(function(e){return e.cS;}),borderColor:'rgba(255,149,0,.9)',backgroundColor:'rgba(255,149,0,.08)',fill:true,tension:.4,pointRadius:0,borderWidth:2.5}],{scales:{x:{grid:{display:false},ticks:{color:'#8E8E93',font:{size:10},maxTicksLimit:8},border:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}}}});},80);
 }
 
@@ -1477,7 +1482,7 @@ function rSet(){
   var iRow=div('row','cursor:default;flex-wrap:wrap;gap:8px;padding:12px 18px');
   iRow.innerHTML='<div class="ric" style="background:var(--tlb)">⏱</div><div class="rb"><div class="rl">Intervall</div></div>';
   var iSel=document.createElement('select');iSel.style.cssText='background:var(--bg2);color:var(--t);border:1px solid var(--sep);border-radius:8px;padding:6px 10px;font-size:14px;';
-  [5,10,15,30,60].forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v<60?v+' Sek.':'1 Min.';if(S.fetchSec===v)o.selected=true;iSel.appendChild(o);});
+  [3,5,10,15,30,60].forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v<60?v+' Sek.':'1 Min.';if((S.fetchSec||5)===v)o.selected=true;iSel.appendChild(o);});
   iSel.onchange=function(){S.fetchSec=parseInt(this.value);svS();if(S.autoFetch&&S.marstekToken)schedFetch();rSet();};
   iRow.appendChild(iSel);sCard.appendChild(iRow);
   // Wake Lock toggle
