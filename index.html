@@ -298,58 +298,48 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       Trotzdem fortfahren
     </button>
   </div>
-    <div style="font-size:62px;margin-bottom:8px">&#x26A1;</div>
-    <div style="font-size:36px;font-weight:800;letter-spacing:-1px;margin-bottom:6px">Voltli</div>
-    <div style="font-size:16px;color:var(--t3);margin-bottom:32px;line-height:1.5">Solar &bull; Akku &bull; Energiefluss<br/>Deine Energie-Zentrale</div>
-
-    <div class="ltabs" id="ltabs">
-      <button class="ltab on" id="lt-a">Starten</button>
-      <button class="ltab" id="lt-d">Demo</button>
+    <!-- Logo -->
+    <div style="margin-bottom:40px;text-align:center">
+      <div style="width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,#FF9500,#FF6B00);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 16px">⚡</div>
+      <div style="font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:4px">Voltly</div>
+      <div style="font-size:14px;color:var(--t3)">Deine Energie-Zentrale</div>
     </div>
 
-    <!-- Starten (Firebase Login) -->
+    <!-- Login -->
     <div id="lp-a" style="width:100%;max-width:340px">
       <div id="fb-ok-bar" style="display:none" class="info info-gr">&#x2705; Cloud-Sync verbunden</div>
-      <div id="fb-no-bar" class="info info-bl">&#x1F525; Mit Firebase-Konto anmelden &mdash; oder ohne Passwort lokal starten.</div>
-      <div class="fg">
+      <div class="fg" style="margin-bottom:12px">
         <div class="fr"><label>E-Mail</label><input type="email" id="lg-m" placeholder="name@beispiel.de" autocomplete="email"/></div>
-        <div class="fr"><label>Passwort</label><input type="password" id="lg-p" placeholder="Leer lassen = lokaler Modus" autocomplete="current-password"/></div>
+        <div class="fr"><label>Passwort</label><input type="password" id="lg-p" placeholder="••••••••" autocomplete="current-password"/></div>
       </div>
       <p id="lg-e" style="display:none;font-size:13px;margin-bottom:12px;text-align:center;border-radius:var(--rs);padding:10px;background:var(--rdb);color:var(--rd)"></p>
-      <button class="btn b-or" id="lg-in" style="width:100%;margin-bottom:10px">&#x26A1; Anmelden</button>
-      <button class="btn b-fi" id="lg-up" style="width:100%;margin-bottom:10px;font-size:14px">Neu registrieren</button>
-      <button class="btn b-gh" id="lg-skip" style="width:100%;margin-bottom:10px;font-size:14px">Ohne Konto &rarr; Demo</button>
-      <button class="btn" id="lg-guest" style="width:100%;font-size:14px;background:var(--f2);color:var(--t2)">&#x1F441; Als Gast ansehen</button>
+      <button class="btn b-or" id="lg-in" style="width:100%;margin-bottom:10px">Anmelden</button>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="btn b-fi" id="lg-up" style="flex:1;font-size:13px">Registrieren</button>
+        <button class="btn b-gh" id="lg-skip" style="flex:1;font-size:13px">Demo</button>
+      </div>
+      <button class="btn" id="lg-guest" style="width:100%;font-size:13px;background:var(--f2);color:var(--t3)">&#x1F441; Als Gast ansehen</button>
     </div>
 
     <!-- Gast-PIN -->
     <div id="lp-guest" style="display:none;width:100%;max-width:340px">
-      <div style="background:var(--blb);border-radius:var(--r);padding:20px;margin-bottom:16px;text-align:left">
-        <div style="font-size:19px;font-weight:700;margin-bottom:6px">&#x1F441; Gast-Ansicht</div>
-        <div style="font-size:14px;color:var(--t2)">Gib den PIN ein den du erhalten hast.</div>
-      </div>
-      <div class="fr" style="margin-bottom:12px"><label>Gast-PIN</label><input type="text" id="guest-pin" placeholder="z.B. SOLAR24" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;text-align:center;font-size:18px;font-weight:700"/></div>
+      <div style="font-size:17px;font-weight:700;margin-bottom:6px;text-align:center">&#x1F441; Gast-Zugang</div>
+      <div style="font-size:14px;color:var(--t3);margin-bottom:20px;text-align:center">Gib den PIN ein, den du erhalten hast.</div>
+      <input type="text" id="guest-pin" placeholder="PIN eingeben" autocomplete="off" style="width:100%;box-sizing:border-box;text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:22px;font-weight:700;padding:14px;border-radius:14px;border:2px solid var(--sep2);background:var(--f);color:var(--t);font-family:inherit;outline:none;margin-bottom:12px"/>
       <p id="guest-e" style="display:none;font-size:13px;margin-bottom:12px;text-align:center;border-radius:var(--rs);padding:10px;background:var(--rdb);color:var(--rd)"></p>
-      <button class="btn b-bl" id="guest-go" style="width:100%;margin-bottom:10px">&#x1F441; Gast-Zugang öffnen</button>
-      <button class="btn b-gh" id="guest-back" style="width:100%;font-size:14px">&#x2190; Zurück</button>
+      <button class="btn b-bl" id="guest-go" style="width:100%;margin-bottom:8px">Öffnen</button>
+      <button class="btn b-gh" id="guest-back" style="width:100%;font-size:13px">&#x2190; Zurück</button>
     </div>
 
     <!-- Demo -->
     <div id="lp-d" style="display:none;width:100%;max-width:340px">
-      <div style="background:var(--orb);border-radius:var(--r);padding:20px;margin-bottom:16px;text-align:left">
-        <div style="font-size:19px;font-weight:700;margin-bottom:10px">&#x1F3AD; Demo-Modus</div>
-        <div style="font-size:14px;color:var(--t2);line-height:1.7">
-          &#x2705; 30 Tage Beispieldaten<br/>
-          &#x2705; Live-Simulation (Zahlen bewegen sich)<br/>
-          &#x2705; Solar &bull; Akku &bull; Energiefluss<br/>
-          &#x2705; Alle Charts &amp; Trends
-        </div>
-      </div>
+      <div style="font-size:17px;font-weight:700;margin-bottom:6px;text-align:center">&#x1F3AD; Demo-Modus</div>
+      <div style="font-size:14px;color:var(--t3);margin-bottom:20px;text-align:center;line-height:1.6">30 Tage Beispieldaten &bull; Live-Simulation<br/>Solar, Akku &amp; Energiefluss</div>
       <button class="btn b-or" style="width:100%" id="demo-go">Demo starten</button>
     </div>
 
-    <p style="margin-top:28px;font-size:12px;color:var(--t4);line-height:2">
-      &#x26A1; Voltli &bull; iPhone: Safari &rarr; Teilen &rarr; Zum Home-Bildschirm<br/>Android: Chrome &rarr; App installieren
+    <p style="margin-top:32px;font-size:11px;color:var(--t4);text-align:center;line-height:1.8">
+      iPhone: Safari → Teilen → Zum Home-Bildschirm<br/>Android: Chrome → App installieren
     </p>
   </div>
 </div>
