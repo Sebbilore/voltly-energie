@@ -854,7 +854,7 @@ document.addEventListener('visibilitychange',function(){
 function shareWrite(){
   if(!S.sharePin||!live)return;
   ftch(VOLTLI_EDGE+'/share',{method:'POST',headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
-    body:JSON.stringify({action:'write',pin:S.sharePin,live_data:live,owner_email:S.marstekEmail||''})
+    body:JSON.stringify({action:'write',pin:S.sharePin,live_data:live,entries:E.slice(0,60),owner_email:S.marstekEmail||''})
   },8).then(function(r){return r.json();}).catch(function(){});
 }
 
@@ -873,13 +873,16 @@ function loadGuestVisits(pin,cb){
 function startGuestMode(pin){
   guestMode=true;
   live=null;
+  // Hide Settings tab for guests
+  var setBt=el('bt-set'); if(setBt) setBt.style.display='none';
   var pollGuest=function(){
     shareRead(pin,function(d){
       if(d.error){toast('Ungültiger PIN');return;}
       live=d.live_data;
       live.source='guest';
       lastFetch=new Date(d.updated_at).getTime()||Date.now();
-      if(curTab==='home')rHome();if(curTab==='src')rSrc();
+      if(d.entries&&d.entries.length){E=d.entries;svE();}
+      if(curTab==='home')rHome();if(curTab==='src')rSrc();if(curTab==='trnd')rTrnd();
     });
   };
   pollGuest();
