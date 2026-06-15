@@ -694,8 +694,15 @@ function doSignIn() {
       var cloudS=results[0], cloudAcc=results[1], rows=results[2];
       if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); }
       if(cloudAcc && cloudAcc.date===today()){ acc=cloudAcc; }
-      if(rows && rows.length){ E=rows; svE(); }
+      var localE=ldE();
+      if(rows && rows.length >= localE.length){ E=rows; svE(); }
+      else if(localE.length > (rows?rows.length:0)){
+        // Migrate localStorage entries to Firestore
+        E=localE; svE();
+        localE.forEach(function(entry){ CLOUD.saveEntry(entry); });
+      }
       if(curTab==='home')rHome(); if(curTab==='trnd')rTrnd();
+      shareWrite();
     });
   }).catch(function(e) {
     errEl.style.display='block';
@@ -1745,8 +1752,14 @@ function renderWeather(cont,d){
           var cloudS=results[0], cloudAcc=results[1], rows=results[2];
           if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); }
           if(cloudAcc && cloudAcc.date===today()){ acc=cloudAcc; }
-          if(rows && rows.length){ E=rows; svE(); }
+          var localE=ldE();
+          if(rows && rows.length >= localE.length){ E=rows; svE(); }
+          else if(localE.length > (rows?rows.length:0)){
+            E=localE; svE();
+            localE.forEach(function(entry){ CLOUD.saveEntry(entry); });
+          }
           if(curTab==='home')rHome(); if(curTab==='trnd')rTrnd();
+          shareWrite();
         });
       }
     }
