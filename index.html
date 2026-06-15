@@ -313,11 +313,9 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div class="fr"><label>Passwort</label><input type="password" id="lg-p" placeholder="••••••••" autocomplete="current-password"/></div>
       </div>
       <p id="lg-e" style="display:none;font-size:13px;margin-bottom:12px;text-align:center;border-radius:var(--rs);padding:10px;background:var(--rdb);color:var(--rd)"></p>
-      <button class="btn b-or" id="lg-in" style="width:100%;margin-bottom:10px">Anmelden</button>
-      <div style="display:flex;gap:8px;margin-bottom:8px">
-        <button class="btn b-fi" id="lg-up" style="flex:1;font-size:13px">Registrieren</button>
-        <button class="btn b-gh" id="lg-skip" style="flex:1;font-size:13px">Demo</button>
-      </div>
+      <button class="btn b-or" id="lg-in" style="width:100%;margin-bottom:8px">Anmelden</button>
+      <button class="btn b-fi" id="lg-up" style="display:none"></button>
+      <button class="btn b-gh" id="lg-skip" style="width:100%;font-size:13px;margin-bottom:8px">Demo ansehen</button>
       <button class="btn" id="lg-guest" style="width:100%;font-size:13px;background:var(--f2);color:var(--t3)">&#x1F441; Als Gast ansehen</button>
     </div>
 
@@ -625,9 +623,9 @@ function hideOv(id) { el('ov-'+id).classList.remove('open'); }
 
 /* ── Login tab switch ── */
 function lTab(t) {
-  ['a','d'].forEach(function(x) {
-    el('lt-'+x).classList.toggle('on', x===t);
-    el('lp-'+x).style.display = x===t ? 'block' : 'none';
+  ['a','d','guest'].forEach(function(x) {
+    var lte=el('lt-'+x); if(lte) lte.classList.toggle('on', x===t);
+    var lpe=el('lp-'+x); if(lpe) lpe.style.display = x===t ? 'block' : 'none';
   });
 }
 
@@ -1622,13 +1620,13 @@ function renderWeather(cont,d){
   }());
 
   /* Login screen */
-  el('lt-a').onclick=function(){lTab('a');};
-  el('lt-d').onclick=function(){lTab('d');};
+  if(el('lt-a'))el('lt-a').onclick=function(){lTab('a');};
+  if(el('lt-d'))el('lt-d').onclick=function(){lTab('d');};
   el('lg-in').onclick=doSignIn;
   el('lg-up').onclick=doSignUp;
   el('lg-skip').onclick=function(){bootApp(true);};
   el('demo-go').onclick=function(){bootApp(true);};
-  el('lg-guest').onclick=function(){lTab('a');el('lp-a').style.display='none';el('lp-guest').style.display='block';setTimeout(function(){var p=el('guest-pin');if(p)p.focus();},100);};
+  el('lg-guest').onclick=function(){el('lp-a').style.display='none';el('lp-d').style.display='none';el('lp-guest').style.display='block';setTimeout(function(){var p=el('guest-pin');if(p)p.focus();},100);};
   el('guest-back').onclick=function(){el('lp-guest').style.display='none';el('lp-a').style.display='block';};
   el('guest-go').onclick=function(){
     var pin=(el('guest-pin').value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
