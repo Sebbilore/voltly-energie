@@ -318,7 +318,20 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       <p id="lg-e" style="display:none;font-size:13px;margin-bottom:12px;text-align:center;border-radius:var(--rs);padding:10px;background:var(--rdb);color:var(--rd)"></p>
       <button class="btn b-or" id="lg-in" style="width:100%;margin-bottom:10px">&#x26A1; Anmelden</button>
       <button class="btn b-fi" id="lg-up" style="width:100%;margin-bottom:10px;font-size:14px">Neu registrieren</button>
-      <button class="btn b-gh" id="lg-skip" style="width:100%;font-size:14px">Ohne Konto &rarr; Demo</button>
+      <button class="btn b-gh" id="lg-skip" style="width:100%;margin-bottom:10px;font-size:14px">Ohne Konto &rarr; Demo</button>
+      <button class="btn" id="lg-guest" style="width:100%;font-size:14px;background:var(--f2);color:var(--t2)">&#x1F441; Als Gast ansehen</button>
+    </div>
+
+    <!-- Gast-PIN -->
+    <div id="lp-guest" style="display:none;width:100%;max-width:340px">
+      <div style="background:var(--blb);border-radius:var(--r);padding:20px;margin-bottom:16px;text-align:left">
+        <div style="font-size:19px;font-weight:700;margin-bottom:6px">&#x1F441; Gast-Ansicht</div>
+        <div style="font-size:14px;color:var(--t2)">Gib den PIN ein den du erhalten hast.</div>
+      </div>
+      <div class="fr" style="margin-bottom:12px"><label>Gast-PIN</label><input type="text" id="guest-pin" placeholder="z.B. SOLAR24" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;text-align:center;font-size:18px;font-weight:700"/></div>
+      <p id="guest-e" style="display:none;font-size:13px;margin-bottom:12px;text-align:center;border-radius:var(--rs);padding:10px;background:var(--rdb);color:var(--rd)"></p>
+      <button class="btn b-bl" id="guest-go" style="width:100%;margin-bottom:10px">&#x1F441; Gast-Zugang öffnen</button>
+      <button class="btn b-gh" id="guest-back" style="width:100%;font-size:14px">&#x2190; Zurück</button>
     </div>
 
     <!-- Demo -->
@@ -1625,6 +1638,21 @@ function renderWeather(cont,d){
   el('lg-up').onclick=doSignUp;
   el('lg-skip').onclick=function(){bootApp(true);};
   el('demo-go').onclick=function(){bootApp(true);};
+  el('lg-guest').onclick=function(){lTab('a');el('lp-a').style.display='none';el('lp-guest').style.display='block';setTimeout(function(){var p=el('guest-pin');if(p)p.focus();},100);};
+  el('guest-back').onclick=function(){el('lp-guest').style.display='none';el('lp-a').style.display='block';};
+  el('guest-go').onclick=function(){
+    var pin=(el('guest-pin').value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(pin.length<4){var e=el('guest-e');e.textContent='PIN muss mindestens 4 Zeichen haben';e.style.display='block';return;}
+    var btn=el('guest-go');btn.disabled=true;btn.textContent='Prüfe PIN…';
+    shareRead(pin,function(d){
+      btn.disabled=false;btn.textContent='👁 Gast-Zugang öffnen';
+      if(d.error||!d.live_data){var e=el('guest-e');e.textContent='Ungültiger PIN oder keine Daten verfügbar';e.style.display='block';return;}
+      S=ldS();applyTheme(S.darkMode||'auto');
+      el('ls').style.display='none';el('app').style.display='block';
+      startGuestMode(pin);go('home');
+    });
+  };
+  el('guest-pin').onkeydown=function(e){if(e.key==='Enter')el('guest-go').click();};
 
   /* Tabs */
   el('bt-home').onclick=function(){go('home');};
