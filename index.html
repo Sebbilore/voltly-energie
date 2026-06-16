@@ -890,11 +890,10 @@ function fetchMarstek(silent) {
       var temp=parseFloat(vDev.bat_temp||vDev.temperature||0);
       var cap=parseFloat(vDev.bat_cap||vDev.capacity||5000);
       var profit=parseFloat(vDev.profit||0);
-      var hausW=Math.max(0,Math.round(pvW+dischargeW+Math.max(0,loadW)-chargeW));
-
-      // Wenn FoxESS aktiv und frisch → FoxESS treibt updateAcc allein (verhindert Doppelzählung)
+      // Marstek: nur echte Messwerte — kein hausW, kein Eigenverbrauch berechnen
+      // FoxESS ist alleinige Quelle für Solar, Haus und Eigenverbrauch
       if(!S.foxessEnabled||foxessIsStale()){
-        updateAcc(0,dischargeW,loadW,Math.max(0,Math.round(dischargeW+Math.max(0,loadW))));
+        updateAcc(0,dischargeW,loadW,0);
       }
       checkNotifications(soc,pvW);
       trackUptime(true);checkAnomalie();checkMorgenBriefing();checkTagesrekord();
