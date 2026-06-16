@@ -892,8 +892,10 @@ function fetchMarstek(silent) {
       var profit=parseFloat(vDev.profit||0);
       var hausW=Math.max(0,Math.round(pvW+dischargeW+Math.max(0,loadW)-chargeW));
 
-      // Marstek liefert nie Solar — nur Akku (dischargeW/loadW)
-      updateAcc(0,dischargeW,loadW,Math.max(0,Math.round(dischargeW+Math.max(0,loadW))));
+      // Wenn FoxESS aktiv und frisch → FoxESS treibt updateAcc allein (verhindert Doppelzählung)
+      if(!S.foxessEnabled||foxessIsStale()){
+        updateAcc(0,dischargeW,loadW,Math.max(0,Math.round(dischargeW+Math.max(0,loadW))));
+      }
       checkNotifications(soc,pvW);
       trackUptime(true);checkAnomalie();checkMorgenBriefing();checkTagesrekord();
       var hs={ts:Date.now(),chargeW:pvW,dischargeW:dischargeW,loadW:loadW,soc:soc};
