@@ -529,7 +529,8 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
   strompreis:0.32, einspeise:0.082, currency:'EUR',
-  autoFetch:true, fetchSec:5, activeSrc:'combined', chartPeriod:'week', darkMode:'auto' };
+  autoFetch:true, fetchSec:5, activeSrc:'combined', chartPeriod:'week', darkMode:'auto',
+  notifications:false };
 
 /* ── Demo data ── */
 var DEMO = (function() {
@@ -824,6 +825,7 @@ function fetchMarstek(silent) {
       var hausW=Math.max(0,Math.round(pvW+dischargeW+Math.max(0,loadW)-chargeW));
 
       updateAcc(pvW,dischargeW,loadW,hausW);
+      checkNotifications(soc,pvW);
       var hs={ts:Date.now(),chargeW:pvW,dischargeW:dischargeW,loadW:loadW,soc:soc};
       hourlyH.push(hs);if(hourlyH.length>192)hourlyH.shift();
       live={
@@ -1133,6 +1135,81 @@ function makeSeg(periods,current,fn){
   var seg=div('seg');periods.forEach(function(p){var b=document.createElement('button');b.className='seg-b'+(p[0]===current?' on':'');b.textContent=p[1];b.onclick=function(){fn(p[0]);};seg.appendChild(b);});return seg;
 }
 
+/* ── Notifications ── */
+function checkNotifications(soc,pvW){
+  if(!S.notifications)return;
+  if(soc>=98&&!notifSent.full){notifSent.full=true;sendNotif('🔋 Akku voll!','Ladestand '+soc+'% — jetzt Verbraucher einschalten');}
+  else if(soc<95)notifSent.full=false;
+  if(soc<=15&&!notifSent.low){notifSent.low=true;sendNotif('⚠️ Akku fast leer','Noch '+soc+'% — Verbraucher reduzieren');}
+  else if(soc>20)notifSent.low=false;
+}
+function sendNotif(title,body){
+  if(!('Notification' in window))return;
+  var ico='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>';
+  if(Notification.permission==='granted'){try{new Notification(title,{body:body,icon:ico});}catch(e){}}
+  else if(Notification.permission!=='denied'){Notification.requestPermission().then(function(p){if(p==='granted')try{new Notification(title,{body:body,icon:ico});}catch(e){}});}
+}
+
+/* ── Awattar Strompreis ── */
+function fetchAwattar(cb){
+  var now=Date.now();
+  if(awattarCache&&now-awattarFetchTs<1800000){cb(awattarCache);return;}
+  var start=new Date();start.setHours(0,0,0,0);
+  var end=new Date();end.setHours(23,59,59,999);
+  fetch('https://api.awattar.de/v1/marketdata?start='+start.getTime()+'&end='+end.getTime())
+    .then(function(r){return r.json();})
+    .then(function(d){awattarCache=d;awattarFetchTs=Date.now();cb(d);})
+    .catch(function(){cb(null);});
+}
+function renderAwattar(cont,d){
+  if(!d||!d.data||!d.data.length)return;
+  var now=Date.now();
+  var prices=d.data;
+  var cur=prices.find(function(p){return p.start_timestamp<=now&&p.end_timestamp>now;});
+  var curPrice=cur?(cur.marketprice/10):null;
+  var sorted=prices.slice().sort(function(a,b){return a.marketprice-b.marketprice;});
+  var cheapTs=sorted.slice(0,3).map(function(p){return p.start_timestamp;});
+  var maxP=Math.max.apply(null,prices.map(function(p){return p.marketprice;}))||1;
+  var minP=Math.min.apply(null,prices.map(function(p){return p.marketprice;}));
+  var isNowCheap=cur&&cheapTs.indexOf(cur.start_timestamp)>=0;
+  var card=div('card','padding:16px 18px;margin-bottom:12px');
+  var hd=div('','font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px');
+  hd.textContent='⚡ Börsenstrompreis (Awattar)';card.appendChild(hd);
+  if(curPrice!==null){
+    var priceColor=isNowCheap?'var(--gr)':curPrice>15?'var(--rd)':'var(--or)';
+    var priceBg=isNowCheap?'var(--grb)':curPrice>15?'var(--rdb)':'var(--orb)';
+    var priceLabel=isNowCheap?'Günstig jetzt ✓':curPrice>15?'Teuer':'Mittel';
+    var curRow=div('','display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:10px 14px;border-radius:12px;background:'+priceBg);
+    curRow.innerHTML='<div><div style="font-size:11px;color:var(--t3);margin-bottom:2px">Jetzt (Marktpreis)</div>'
+      +'<div style="font-size:28px;font-weight:700;color:'+priceColor+';letter-spacing:-.5px">'+curPrice.toFixed(1)+'<span style="font-size:13px;font-weight:400"> ct/kWh</span></div></div>'
+      +'<div style="font-size:13px;font-weight:600;color:'+priceColor+'">'+priceLabel+'</div>';
+    card.appendChild(curRow);
+  }
+  var range=maxP-minP||1;
+  var bars=div('','display:flex;align-items:flex-end;gap:1px;height:44px');
+  prices.forEach(function(p){
+    var isCur=cur&&p.start_timestamp===cur.start_timestamp;
+    var isCheap=cheapTs.indexOf(p.start_timestamp)>=0;
+    var bh=Math.max(3,Math.round((p.marketprice-minP)/range*44));
+    var col=isCur?'var(--or)':isCheap?'var(--gr)':'rgba(142,142,147,.35)';
+    var b=div('','flex:1;border-radius:2px 2px 0 0;background:'+col);b.style.height=bh+'px';bars.appendChild(b);
+  });
+  card.appendChild(bars);
+  var ticks=div('','display:flex;justify-content:space-between;font-size:9px;color:var(--t4);margin-top:3px');
+  [0,6,12,18,23].forEach(function(h){var s=document.createElement('span');s.textContent=h+'h';ticks.appendChild(s);});
+  card.appendChild(ticks);
+  var ch=div('','display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap');
+  var cl=div('','font-size:11px;color:var(--t3)');cl.textContent='Günstigste Stunden:';ch.appendChild(cl);
+  sorted.slice(0,3).forEach(function(p){
+    var h=new Date(p.start_timestamp).getHours();
+    var chip=div('','background:var(--grb);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--gr)');
+    chip.textContent=h+':00 ('+nf(p.marketprice/10).toFixed(1)+' ct)';ch.appendChild(chip);
+  });
+  card.appendChild(ch);
+  var note=div('','font-size:10px;color:var(--t4);margin-top:8px');note.textContent='Marktpreis ohne Netzentgelte & Steuern · awattar.de';card.appendChild(note);
+  cont.appendChild(card);
+}
+
 /* ══════ RENDER HOME ══════ */
 function rHome(){
   var entries=ae(),lv=al();
@@ -1431,6 +1508,14 @@ function rSrc(){
     akBanner.innerHTML='<div style="text-align:center;padding:16px 0"><div style="font-size:36px;margin-bottom:10px">🔋</div><div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:6px">Marstek Venus</div><div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:14px">Marstek verbinden für Akkudaten</div><button class="btn" style="background:rgba(255,255,255,.2);color:#fff" onclick="showOv(\'ml\')">Marstek verbinden</button></div>';
   }
   f.appendChild(akBanner);
+  // SOC 24h Verlauf
+  var _soc24pts=(function(){var n=Date.now();return hourlyH.filter(function(h){return h.ts>=n-86400000;});}());
+  if(_soc24pts.length>=2){
+    var soc24cc=div('cc fu3');
+    soc24cc.innerHTML='<div style="font-size:15px;font-weight:600;margin-bottom:10px">🔋 Ladestand — Letzte 24h</div>';
+    var soc24w=div('cw');var soc24cv=document.createElement('canvas');soc24cv.id='ch-soc';soc24w.appendChild(soc24cv);soc24cc.appendChild(soc24w);
+    f.appendChild(soc24cc);
+  }
 
   /* ── 3. Solar & Ertrag — Oranges Gradient-Banner ── */
   var solHeute=(acc.date===today()?nf(acc.solar):0)+nf((todayE&&todayE.solar&&todayE.solar.solar)||0);
@@ -1456,6 +1541,12 @@ function rSrc(){
   var srb=el('srb');srb.innerHTML='';srb.appendChild(f);
 
   setTimeout(function(){
+    if(el('ch-soc')&&_soc24pts.length>=2){
+      var sL=_soc24pts.map(function(h){var d=new Date(h.ts);return d.getHours()+':'+(d.getMinutes()<10?'0':'')+d.getMinutes();});
+      var socColor=bv?socCol(bv.soc):'#007AFF';
+      mkCH('ch-soc','line',sL,[{label:'SOC %',data:_soc24pts.map(function(h){return h.soc;}),borderColor:socColor,backgroundColor:'rgba(0,122,255,.08)',fill:true,tension:.4,pointRadius:0,borderWidth:2}],
+        {scales:{x:{grid:{display:false},ticks:{color:'#8E8E93',font:{size:9},maxTicksLimit:12},border:{display:false}},y:{min:0,max:100,grid:{color:'rgba(0,0,0,.04)'},ticks:{color:'#8E8E93',font:{size:10},callback:function(v){return v+'%';}},border:{display:false}}}});
+    }
     if(srcPeriod==='hour'){
       // Intraday chart from hourlyH snapshots
       var now=Date.now(),cutoff=now-86400000;
@@ -1586,6 +1677,17 @@ function rSet(){
       else{if(window._wakeLock)window._wakeLock.release().then(function(){window._wakeLock=null;});}
     };wL.appendChild(wI);var wT=div('tog-tr');wL.appendChild(wT);var wH=div('tog-th');wL.appendChild(wH);wRow.appendChild(wL);sCard.appendChild(wRow);
   }
+  // Benachrichtigungen
+  if('Notification' in window){
+    sCard.appendChild(sepEl());
+    var nRow=div('row','cursor:default');
+    nRow.innerHTML='<div class="ric" style="background:var(--grb)">🔔</div><div class="rb"><div class="rl">Benachrichtigungen</div><div class="rs">Akku voll / fast leer</div></div>';
+    var nL=document.createElement('label');nL.className='tog';var nI=document.createElement('input');nI.type='checkbox';nI.checked=!!S.notifications;
+    nI.onchange=function(){
+      if(this.checked){Notification.requestPermission().then(function(p){S.notifications=(p==='granted');svS();toast(S.notifications?'Benachrichtigungen aktiviert ✓':'Berechtigung verweigert');rSet();});}
+      else{S.notifications=false;svS();rSet();}
+    };nL.appendChild(nI);nL.appendChild(div('tog-tr'));nL.appendChild(div('tog-th'));nRow.appendChild(nL);sCard.appendChild(nRow);
+  }
   f.appendChild(sCard);
 
   addSH(f,'🔗 Freigabe & Gastzugang','fu5');
@@ -1627,6 +1729,8 @@ function rSet(){
 
 /* ══════ WETTER ══════ */
 var weatherCache=null, weatherFetchTs=0;
+var awattarCache=null, awattarFetchTs=0;
+var notifSent={full:false,low:false};
 var WMO={0:'☀️ Klar',1:'🌤 Überwiegend klar',2:'⛅ Teilweise bewölkt',3:'☁️ Bewölkt',
   45:'🌫 Nebel',48:'🌫 Eis-Nebel',51:'🌦 Leichter Niesel',53:'🌦 Niesel',55:'🌦 Starker Niesel',
   61:'🌧 Leichter Regen',63:'🌧 Regen',65:'🌧 Starker Regen',71:'🌨 Leichter Schnee',
@@ -1740,6 +1844,9 @@ function renderWeather(cont,d){
   }
 
   cont.innerHTML='';cont.appendChild(f);
+  // Awattar Strompreise
+  var awDiv=div('');cont.appendChild(awDiv);
+  fetchAwattar(function(d){renderAwattar(awDiv,d);});
 }
 
 /* ══════ INIT ══════ */
