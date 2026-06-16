@@ -537,7 +537,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='2026-06-16 v1.4';
+var APP_VERSION='2026-06-16 12:00';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1819,7 +1819,7 @@ function rHome(){
   }
 
   var tg=div('tg fu3');
-  var acSol=acc.date===today()?nf(acc.solar):nf(gv(todayE,'solar'));
+  var acSol=nf(acc.date===today()?acc.solar:0); // Solar nur aus FoxESS-acc, kein Fallback auf Einträge
   var acBat=acc.date===today()?nf(acc.bat):nf(gv(todayE,'bat'));
   var acGrd=acc.date===today()?nf(acc.grid):nf(gv(todayE,'grid'));
   var acHaus=acc.date===today()?nf(acc.haus):0;
@@ -2075,7 +2075,7 @@ function rSrc(){
   }
 
   /* ── 3. Solar & Ertrag — Oranges Gradient-Banner ── */
-  var solHeute=acc.date===today()?nf(acc.solar):nf((todayE&&todayE.solar&&todayE.solar.solar)||0);
+  var solHeute=acc.date===today()?nf(acc.solar):0;
   var eigenHeute=acc.date===today()?nf(acc.eigen):0;
   var hausHeute=acc.date===today()?nf(acc.haus):0;
   var eigenQuote=solHeute>0?Math.min(100,Math.round(eigenHeute/solHeute*100)):0;
