@@ -607,7 +607,7 @@ var _accSaveT=0;
 function svAcc() {
   localStorage.setItem('vt3acc', JSON.stringify(acc));
   var now=Date.now();
-  if(now-_accSaveT<60000) return; // max once per minute to Firebase
+  if(now-_accSaveT<10000) return; // max once per 10s to Firebase
   _accSaveT=now;
   CLOUD.saveAcc(acc);
 }
