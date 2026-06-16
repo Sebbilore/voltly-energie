@@ -346,7 +346,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       <button class="btn b-or" style="width:100%" id="demo-go">Demo starten</button>
     </div>
 
-    <p style="margin-top:32px;font-size:11px;color:var(--t4);text-align:center;line-height:1.8">
+    <p id="install-hint" style="margin-top:32px;font-size:11px;color:var(--t4);text-align:center;line-height:1.8">
       iPhone: Safari → Teilen → Zum Home-Bildschirm<br/>Android: Chrome → App installieren
     </p>
   </div>
@@ -993,6 +993,35 @@ function patchHome(){
   // Sync-Timestamp aktualisieren
   var sts=el('sync-ts');
   if(sts&&lastFetch)sts.textContent='↻ '+new Date(lastFetch).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  // Kachel-Werte sanft animieren (nur wenn IDs vorhanden)
+  var cur2=getCur();
+  function patchTileVal(tid,newVal,dec){
+    var el2=el('tile-v-'+tid);if(!el2)return;
+    var old=parseFloat(el2.getAttribute('data-val')||'0');
+    var nv=parseFloat(newVal);
+    if(isNaN(nv)||Math.abs(nv-old)<0.001){return;}
+    el2.setAttribute('data-val',nv);
+    var unit=el2.querySelector('.t-u');var uHtml=unit?unit.outerHTML:'';
+    var st=null,dur=500;
+    requestAnimationFrame(function step(ts){
+      if(!st)st=ts;var p=Math.min((ts-st)/dur,1);
+      var cur3=(old+(nv-old)*p).toFixed(dec);
+      el2.innerHTML=cur3+uHtml;
+      if(p<1)requestAnimationFrame(step);
+    });
+  }
+  if(acc.date===today()){
+    var acSol2=nf(acc.solar),acGrd2=nf(acc.grid),acBat2=nf(acc.bat);
+    var acSav2=nf((acSol2+acBat2)*S.strompreis);
+    var acEigen2=nf(acc.eigen),acHaus2=nf(acc.haus);
+    var autQ2=acHaus2>0?Math.min(100,Math.round(acEigen2/acHaus2*100)):0;
+    patchTileVal('solar',acSol2,2);
+    patchTileVal('grid',acGrd2,2);
+    patchTileVal('sav',acSav2,2);
+    patchTileVal('eigen',acEigen2,2);
+    patchTileVal('haus',acHaus2,2);
+    patchTileVal('aut',autQ2,0);
+  }
 }
 // Always refresh when app comes back to foreground (even if interval is running)
 document.addEventListener('visibilitychange',function(){
@@ -1037,13 +1066,13 @@ function loadGuestVisits(pin,cb){
 function startGuestMode(pin){
   guestMode=true;
   live=null;
-  // Hide Settings tab for guests
-  var setBt=el('bt-set'); if(setBt) setBt.style.display='none';
+  // Show settings tab for guests (limited view)
+  var setBt=el('bt-set'); if(setBt) setBt.style.display='';
   var pollGuest=function(){
     shareRead(pin,function(d){
       if(d.error){toast('Ungültiger PIN');return;}
       live=d.live_data;
-      live.source='guest';
+      if(live)live.source='guest';
       lastFetch=new Date(d.updated_at).getTime()||Date.now();
       if(d.entries&&d.entries.length){E=d.entries;svE();}
       if(curTab==='home')patchHome();if(curTab==='src')rSrc();if(curTab==='trnd')rTrnd();
@@ -1051,6 +1080,44 @@ function startGuestMode(pin){
   };
   pollGuest();
   fi=setInterval(pollGuest,(S.fetchSec||5)*1000);
+}
+
+function rSetGuest(){
+  var f=document.createDocumentFragment();
+  // Header
+  var hCard=div('card');
+  var hRow=div('row','cursor:default');
+  hRow.innerHTML='<div class="ric" style="background:var(--blb)">👁</div><div class="rb"><div class="rl">Gast-Ansicht</div><div class="rs">Eingeschränkter Zugriff</div></div>';
+  hCard.appendChild(hRow);f.appendChild(hCard);
+  // Darstellung
+  addSH(f,'Darstellung','gs1');
+  var dmCard=div('card gs1');
+  var dmRow=div('row','cursor:default');
+  var dmIcon=S.darkMode==='dark'?'🌙':S.darkMode==='light'?'☀️':'⚙️';
+  var dmLabel=S.darkMode==='dark'?'Dunkel':S.darkMode==='light'?'Hell':'Automatisch';
+  dmRow.innerHTML='<div class="ric" style="background:var(--f2)">'+dmIcon+'</div><div class="rb"><div class="rl">Darkmodus</div><div class="rs">'+dmLabel+'</div></div>';
+  var dmSeg=makeSeg([['auto','Auto'],['light','Hell'],['dark','Dunkel']],S.darkMode||'auto',function(v){S.darkMode=v;svS();applyTheme(v);rSetGuest();});
+  dmRow.appendChild(dmSeg);dmCard.appendChild(dmRow);f.appendChild(dmCard);
+  // Abmelden
+  addSH(f,'Gastzugang','gs2');
+  var loCard=div('card gs2');
+  var loRow=makeRow('🚪','var(--rdb)','Gast-Ansicht beenden',null,null,'var(--rd)',false,function(){
+    showAlert('Beenden','Gast-Ansicht verlassen?',[
+      {label:'Abbrechen',bold:true,fn:closeAlert},
+      {label:'Beenden',danger:true,fn:function(){
+        clearInterval(fi);guestMode=false;live=null;E=[];
+        closeAlert();
+        el('app').style.display='none';
+        el('ls').style.display='block';
+        el('lp-guest').style.display='none';
+        el('lp-a').style.display='block';
+        window.history.replaceState({},'',window.location.pathname);
+      }}
+    ]);
+  });
+  loRow.querySelector('.rl').style.color='var(--rd)';
+  loCard.appendChild(loRow);f.appendChild(loCard);
+  var stb=el('stb');stb.innerHTML='';stb.appendChild(f);
 }
 
 function openShareSettings(){
@@ -1177,7 +1244,7 @@ function mkCH(id,type,labels,datasets,extra){
     plugins:{
       legend:{display:multiDs,position:'top',labels:{color:'#8E8E93',boxWidth:10,boxHeight:10,padding:12,font:{size:11}}},
       tooltip:{backgroundColor:'rgba(255,255,255,.98)',borderColor:'rgba(0,0,0,.08)',borderWidth:1,titleColor:'#8E8E93',bodyColor:'#1C1C1E',cornerRadius:12,padding:12,displayColors:true,boxWidth:8,boxHeight:8,boxPadding:4},
-      zoom:{zoom:{wheel:{enabled:false},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}
+      zoom:{zoom:{wheel:{enabled:false},pinch:{enabled:false},mode:'x'},pan:{enabled:true,mode:'x'}}
     },
     scales:{x:{grid:{display:false},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}}},
     animation:{duration:460,easing:'easeInOutQuart'}};
@@ -1240,8 +1307,10 @@ function makeRow(ic,icBg,label,sub,val,valC,chevron,onclick){
   if(onclick)r.onclick=onclick;return r;
 }
 function makeCard2(rows){var c=div('card');rows.forEach(function(r,i){if(i>0)c.appendChild(sepEl());c.appendChild(r);});return c;}
-function makeTile(ic,icBg,v,u,c,l,tip){
-  var t=div('tile');t.innerHTML='<div class="t-ic" style="background:'+icBg+'">'+ic+'</div><div class="t-v" style="color:'+c+'" data-val="'+v+'">'+v+'<span class="t-u">'+u+'</span></div><div class="t-l">'+l+'</div>';
+function makeTile(ic,icBg,v,u,c,l,tip,tid){
+  var t=div('tile');
+  var vid=tid?'id="tile-v-'+tid+'" ':'';
+  t.innerHTML='<div class="t-ic" style="background:'+icBg+'">'+ic+'</div><div class="t-v" style="color:'+c+'" '+vid+'data-val="'+v+'">'+v+'<span class="t-u">'+u+'</span></div><div class="t-l">'+l+'</div>';
   var tapped=false;
   t.onclick=function(){
     if(tapped){
@@ -1683,14 +1752,14 @@ function rHome(){
     f.appendChild(kCard);
   } else {
   var baseTiles=[
-    {ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:acSol.toFixed(2),u:'kWh',l:'Solarertrag',tip:'Gesamte Solarproduktion seit Mitternacht.'},
-    {ic:'⚡',bg:'var(--rdb)',c:'var(--rd)',v:acGrd.toFixed(2),u:'kWh',l:'Netzbezug',tip:'Aus dem Netz bezogene Energie heute.'},
-    {ic:'💶',bg:'var(--grb)',c:'var(--gr)',v:acSav.toFixed(2),u:cur,l:'Ersparnis',tip:'(Solar+Akku) × '+S.strompreis+' '+cur+'/kWh'}
+    {ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:acSol.toFixed(2),u:'kWh',l:'Solarertrag',tip:'Gesamte Solarproduktion seit Mitternacht.',tid:'solar'},
+    {ic:'⚡',bg:'var(--rdb)',c:'var(--rd)',v:acGrd.toFixed(2),u:'kWh',l:'Netzbezug',tip:'Aus dem Netz bezogene Energie heute.',tid:'grid'},
+    {ic:'💶',bg:'var(--grb)',c:'var(--gr)',v:acSav.toFixed(2),u:cur,l:'Ersparnis',tip:'(Solar+Akku) × '+S.strompreis+' '+cur+'/kWh',tid:'sav'}
   ];
-  if(acEigen>0)baseTiles.splice(1,0,{ic:'🏠',bg:'var(--pub)',c:'var(--pu)',v:acEigen.toFixed(2),u:'kWh',l:'Eigenverbrauch',tip:'Selbst genutzte Energie (Solar+Akku). Quote: '+eigenQ+'%'});
-  if(acHaus>0)baseTiles.push({ic:'🏡',bg:'var(--blb)',c:'var(--bl)',v:acHaus.toFixed(2),u:'kWh',l:'Hauslast',tip:'Gesamter Hausverbrauch heute.'});
-  if(autarkieQ>0)baseTiles.push({ic:'🌿',bg:'var(--grb)',c:'var(--gr)',v:autarkieQ,u:'%',l:'Autarkie',tip:'Anteil des Hausverbrauchs aus eigener Energie.'});
-  baseTiles.forEach(function(t){tg.appendChild(makeTile(t.ic,t.bg,t.v,t.u,t.c,t.l,t.tip));});
+  if(acEigen>0)baseTiles.splice(1,0,{ic:'🏠',bg:'var(--pub)',c:'var(--pu)',v:acEigen.toFixed(2),u:'kWh',l:'Eigenverbrauch',tip:'Selbst genutzte Energie (Solar+Akku). Quote: '+eigenQ+'%',tid:'eigen'});
+  if(acHaus>0)baseTiles.push({ic:'🏡',bg:'var(--blb)',c:'var(--bl)',v:acHaus.toFixed(2),u:'kWh',l:'Hauslast',tip:'Gesamter Hausverbrauch heute.',tid:'haus'});
+  if(autarkieQ>0)baseTiles.push({ic:'🌿',bg:'var(--grb)',c:'var(--gr)',v:autarkieQ,u:'%',l:'Autarkie',tip:'Anteil des Hausverbrauchs aus eigener Energie.',tid:'aut'});
+  baseTiles.forEach(function(t){tg.appendChild(makeTile(t.ic,t.bg,t.v,t.u,t.c,t.l,t.tip,t.tid));});
   } // end kompaktAnsicht else
   // Sync-Timestamp + Sonnenauf/-untergang (immer anzeigen)
   var infoRow=div('','display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--t4);padding:4px 2px 0');
@@ -2052,6 +2121,7 @@ function rTrnd(){
 
 /* ══════ RENDER SETTINGS ══════ */
 function rSet(){
+  if(guestMode){rSetGuest();return;}
   var con=!!S.marstekToken;var cur=getCur();
   var f=document.createDocumentFragment();
 
@@ -2269,7 +2339,7 @@ function rSet(){
   });
   f.appendChild(gpCard);
 
-  addSH(f,'Demo & Daten','fu6');var dCard=div('card fu6');var dRow=div('row','cursor:default');dRow.innerHTML='<div class="ric" style="background:var(--orb)">🎭</div><div class="rb"><div class="rl">Demo-Modus</div><div class="rs">Live-simulierte Beispieldaten</div></div>';var dL=document.createElement('label');dL.className='tog';var dI=document.createElement('input');dI.type='checkbox';if(demo)dI.checked=true;dI.onchange=function(){demo=this.checked;if(demo)startDemo();else stopDemo();if(curTab==='home')rHome();};dL.appendChild(dI);var dT=div('tog-tr');dL.appendChild(dT);var dH=div('tog-th');dL.appendChild(dH);dRow.appendChild(dL);dCard.appendChild(dRow);dCard.appendChild(sepEl());dCard.appendChild(makeRow('✏️','var(--pub)','Manuell eintragen',null,null,null,true,openMan));dCard.appendChild(sepEl());dCard.appendChild(makeRow('📊','var(--blb)','Als CSV exportieren','Excel / Steuererklärung',null,null,true,exportCSV));dCard.appendChild(sepEl());dCard.appendChild(makeRow('🖨','var(--grb)','Als PDF exportieren','Monatsbericht drucken',null,null,true,exportPDF));dCard.appendChild(sepEl());var delR=makeRow('🗑','var(--rdb)','Alle Daten löschen',null,null,'var(--rd)',false,function(){showAlert('Verlauf löschen','Alle lokalen Daten löschen?',[{label:'Abbrechen',bold:true,fn:closeAlert},{label:'Löschen',danger:true,fn:function(){E=[];svE();closeAlert();toast('Gelöscht');if(curTab==='home')rHome();}}]);});delR.querySelector('.rl').style.color='var(--rd)';dCard.appendChild(delR);f.appendChild(dCard);
+  addSH(f,'Daten','fu6');var dCard=div('card fu6');dCard.appendChild(makeRow('✏️','var(--pub)','Manuell eintragen',null,null,null,true,openMan));dCard.appendChild(sepEl());dCard.appendChild(makeRow('📊','var(--blb)','Als CSV exportieren','Excel / Steuererklärung',null,null,true,exportCSV));dCard.appendChild(sepEl());dCard.appendChild(makeRow('🖨','var(--grb)','Als PDF exportieren','Monatsbericht drucken',null,null,true,exportPDF));dCard.appendChild(sepEl());var delR=makeRow('🗑','var(--rdb)','Alle Daten löschen',null,null,'var(--rd)',false,function(){showAlert('Verlauf löschen','Alle lokalen Daten löschen?',[{label:'Abbrechen',bold:true,fn:closeAlert},{label:'Löschen',danger:true,fn:function(){E=[];svE();closeAlert();toast('Gelöscht');if(curTab==='home')rHome();}}]);});delR.querySelector('.rl').style.color='var(--rd)';dCard.appendChild(delR);f.appendChild(dCard);
 
   /* ── Akku & Anlage ── */
   addSH(f,'Akku & Anlage','fu7');
@@ -2349,7 +2419,7 @@ function rSet(){
   aboutCard.appendChild(sepEl());
   aboutCard.appendChild(makeRow('⚡','var(--orb)','Version',APP_VERSION,null,'var(--or)',false,null));
   aboutCard.appendChild(sepEl());
-  aboutCard.appendChild(makeRow('🔋','var(--grb)','Kompatibel mit','Marstek Venus B2500',null,null,false,null));
+  aboutCard.appendChild(makeRow('🔋','var(--grb)','Kompatibel mit','Marstek Venus E 3.0',null,null,false,null));
   aboutCard.appendChild(sepEl());
   aboutCard.appendChild(makeRow('☁️','var(--pub)','Backend','Firebase · Supabase Edge',null,null,false,null));
   f.appendChild(aboutCard);
@@ -2514,8 +2584,8 @@ function renderWeather(cont,d){
   el('lg-up').onclick=doSignUp;
   el('lg-skip').onclick=function(){bootApp(true);};
   el('demo-go').onclick=function(){bootApp(true);};
-  el('lg-guest').onclick=function(){el('lp-a').style.display='none';el('lp-d').style.display='none';el('lp-guest').style.display='block';setTimeout(function(){var p=el('guest-pin');if(p)p.focus();},100);};
-  el('guest-back').onclick=function(){el('lp-guest').style.display='none';el('lp-a').style.display='block';};
+  el('lg-guest').onclick=function(){el('lp-a').style.display='none';el('lp-d').style.display='none';el('lp-guest').style.display='block';var ih=el('install-hint');if(ih)ih.style.display='none';setTimeout(function(){var p=el('guest-pin');if(p)p.focus();},100);};
+  el('guest-back').onclick=function(){el('lp-guest').style.display='none';el('lp-a').style.display='block';var ih=el('install-hint');if(ih)ih.style.display='';};
   el('guest-go').onclick=function(){
     var pin=(el('guest-pin').value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
     if(pin.length<4){var e=el('guest-e');e.textContent='PIN muss mindestens 4 Zeichen haben';e.style.display='block';return;}
