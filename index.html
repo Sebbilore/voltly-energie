@@ -859,8 +859,8 @@ var lastFetch=0;
 function schedFetch(){
   clearInterval(fi);
   if(!S.marstekToken)return;
-  fetchMarstek(true);
-  fi=setInterval(function(){fetchMarstek(true);},(S.fetchSec||5)*1000);
+  fetchMarstek(true);fetchCT002Local(true);
+  fi=setInterval(function(){fetchMarstek(true);fetchCT002Local(true);},(S.fetchSec||5)*1000);
 }
 function fetchAll(){var ic=el('ri');if(ic)ic.className='spin';fetchMarstek(false);setTimeout(function(){var ic=el('ri');if(ic)ic.className='';},1500);}
 
@@ -1133,6 +1133,22 @@ function makeTile(ic,icBg,v,u,c,l,tip){
 function addSH(f,text,cls){var s=document.createElement('span');s.className='sh '+(cls||'');s.textContent=text;f.appendChild(s);return s;}
 function makeSeg(periods,current,fn){
   var seg=div('seg');periods.forEach(function(p){var b=document.createElement('button');b.className='seg-b'+(p[0]===current?' on':'');b.textContent=p[1];b.onclick=function(){fn(p[0]);};seg.appendChild(b);});return seg;
+}
+
+/* ── CT002 lokaler Server ── */
+var CT002_LOCAL='http://localhost:8080/api/power';
+function fetchCT002Local(silent){
+  fetch(CT002_LOCAL,{signal:AbortSignal.timeout?AbortSignal.timeout(3000):undefined})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.status!=='ok'){ct002Local=null;return;}
+      ct002Local=d;
+      // Netzbezug aus lokalem CT002 überschreibt Cloud-Wert wenn verfügbar
+      if(live&&live.venus)live.venus.load=d.gesamt_w;
+      if(!silent)toast('CT002 lokal ✓ '+d.gesamt_w.toFixed(0)+'W');
+      if(curTab==='home')patchHome();if(curTab==='src')rSrc();
+    })
+    .catch(function(){ct002Local=null;});
 }
 
 /* ── Notifications ── */
@@ -1463,6 +1479,27 @@ function rSrc(){
     f.appendChild(dbgBtn);
   }
 
+  /* ── 1b. CT002 Lokal (Phasenwerte) ── */
+  if(ct002Local&&ct002Local.status==='ok'){
+    var ctlCard=div('card fu1','margin-bottom:12px');
+    var ctlHd=div('','font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:14px 16px 0');ctlHd.textContent='⚡ CT002 Direkt (lokal)';ctlCard.appendChild(ctlHd);
+    var ctlGrid=div('','display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:12px 14px');
+    [['Gesamt',ct002Local.gesamt_w,'var(--or)','var(--orb)'],
+     ['L1',ct002Local.L1_w,'var(--bl)','var(--blb)'],
+     ['L2',ct002Local.L2_w,'var(--gr)','var(--grb)'],
+     ['L3',ct002Local.L3_w,'var(--pu)','var(--pub)']
+    ].forEach(function(s){
+      var t=div('','background:'+s[3]+';border-radius:12px;padding:10px 8px;text-align:center');
+      var sign=s[1]>0?'':s[1]<0?'←':'';
+      t.innerHTML='<div style="font-size:13px;font-weight:700;color:'+s[2]+';letter-spacing:-.3px">'+sign+Math.abs(s[1]).toFixed(0)+'<span style="font-size:10px;opacity:.7"> W</span></div>'
+        +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+s[0]+'</div>';
+      ctlGrid.appendChild(t);
+    });
+    ctlCard.appendChild(ctlGrid);
+    var ctlNote=div('','font-size:11px;color:var(--t4);padding:0 16px 10px');ctlNote.textContent='Direktverbindung via localhost:8080';ctlCard.appendChild(ctlNote);
+    f.appendChild(ctlCard);
+  }
+
   /* ── 2. Akku — Blaues Gradient-Banner ── */
   var akBanner=div('grad-card fu2','background:linear-gradient(135deg,#007AFF,#0051D4);padding:20px;margin-bottom:12px');
   if(bv){
@@ -1731,6 +1768,7 @@ function rSet(){
 var weatherCache=null, weatherFetchTs=0;
 var awattarCache=null, awattarFetchTs=0;
 var notifSent={full:false,low:false};
+var ct002Local=null; // Live-Daten vom lokalen FastAPI-Server
 var WMO={0:'☀️ Klar',1:'🌤 Überwiegend klar',2:'⛅ Teilweise bewölkt',3:'☁️ Bewölkt',
   45:'🌫 Nebel',48:'🌫 Eis-Nebel',51:'🌦 Leichter Niesel',53:'🌦 Niesel',55:'🌦 Starker Niesel',
   61:'🌧 Leichter Regen',63:'🌧 Regen',65:'🌧 Starker Regen',71:'🌨 Leichter Schnee',
