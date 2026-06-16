@@ -513,15 +513,15 @@ var EK='vt3e', SK='vt3s';
 var E=[], S={}, live=null, demo=false, curTab='home', CH={}, msr='b', fi=null;
 var demoInt=null, currentUser=null, isAdmin=false, guestMode=false;
 // Energy accumulator — integrates W readings into kWh since midnight
-var acc={date:'',solar:0,bat:0,grid:0,t:0};
+var acc={date:'',solar:0,bat:0,grid:0,haus:0,t:0};
 // Hourly snapshots for intraday chart (max 192 = 48h at 15s intervals)
 var hourlyH=[];
-function updateAcc(chargeW,dischargeW,loadW){
+function updateAcc(chargeW,dischargeW,loadW,hausW){
   var d=today(),now=Date.now();
-  if(acc.date!==d){acc={date:d,solar:0,bat:0,grid:0,t:now};return;}
-  if(acc.t>0){var h=(now-acc.t)/3600000;acc.solar+=chargeW*h/1000;acc.bat+=dischargeW*h/1000;acc.grid+=Math.max(0,loadW)*h/1000;}
+  if(acc.date!==d){acc={date:d,solar:0,bat:0,grid:0,haus:0,t:now};return;}
+  if(acc.t>0){var h=(now-acc.t)/3600000;acc.solar+=chargeW*h/1000;acc.bat+=dischargeW*h/1000;acc.grid+=Math.max(0,loadW)*h/1000;acc.haus+=Math.max(0,hausW||0)*h/1000;}
   // Sanity check — prevent corrupt negative values from stale data
-  if(acc.solar<0)acc.solar=0;if(acc.bat<0)acc.bat=0;if(acc.grid<0)acc.grid=0;
+  if(acc.solar<0)acc.solar=0;if(acc.bat<0)acc.bat=0;if(acc.grid<0)acc.grid=0;if(acc.haus<0)acc.haus=0;
   acc.t=now;
   svAcc();
 }
@@ -815,7 +815,7 @@ function fetchMarstek(silent) {
       var profit=parseFloat(vDev.profit||0);
       var hausW=Math.max(0,Math.round(pvW+dischargeW+Math.max(0,loadW)-chargeW));
 
-      updateAcc(pvW,dischargeW,loadW);
+      updateAcc(pvW,dischargeW,loadW,hausW);
       var hs={ts:Date.now(),chargeW:pvW,dischargeW:dischargeW,loadW:loadW,soc:soc};
       hourlyH.push(hs);if(hourlyH.length>192)hourlyH.shift();
       live={
@@ -1402,11 +1402,12 @@ function rSrc(){
 
   /* ── 3. Solar & Ertrag — Oranges Gradient-Banner ── */
   var solHeute=(acc.date===today()?nf(acc.solar):0)+nf((todayE&&todayE.solar&&todayE.solar.solar)||0);
-  var savHeute=nf(solHeute*S.strompreis);
+  var eigenHeute=acc.date===today()?nf(acc.haus):0;
+  var savHeute=nf(eigenHeute*S.strompreis);
   var solBanner=div('grad-card fu4','background:linear-gradient(135deg,#FF9500,#FF6B00);padding:20px 20px 16px');
   solBanner.innerHTML='<div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">☀️ Solar & Ertrag</div>';
   var solTiles=div('','display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0');
-  [['☀️','Ertrag heute',solHeute.toFixed(2),'kWh'],['💶','Ersparnis heute',savHeute.toFixed(2),cur],['📊','Gesamt kWh',allTot.toFixed(1),'kWh'],['💰','Gesamt gespart',allSav.toFixed(2),cur]].forEach(function(s){
+  [['☀️','Ertrag heute',solHeute.toFixed(2),'kWh'],['🏠','Eigenverbrauch',eigenHeute.toFixed(2),'kWh'],['💶','Ersparnis heute',savHeute.toFixed(2),cur],['💰','Gesamt gespart',allSav.toFixed(2),cur]].forEach(function(s){
     var st=div('','background:rgba(255,255,255,.18);border-radius:12px;padding:12px 10px');
     st.innerHTML='<div style="font-size:18px;margin-bottom:6px">'+s[0]+'</div>'
       +'<div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:-.5px">'+s[2]+'<span style="font-size:12px;opacity:.75"> '+s[3]+'</span></div>'
