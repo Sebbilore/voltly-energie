@@ -534,6 +534,8 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
+var APP_VERSION='2026-06-16 v1.4';
+
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
   strompreis:0.32, einspeise:0.082, currency:'EUR',
@@ -2039,7 +2041,7 @@ function rSet(){
 
   addSH(f,'Demo & Daten','fu6');var dCard=div('card fu6');var dRow=div('row','cursor:default');dRow.innerHTML='<div class="ric" style="background:var(--orb)">🎭</div><div class="rb"><div class="rl">Demo-Modus</div><div class="rs">Live-simulierte Beispieldaten</div></div>';var dL=document.createElement('label');dL.className='tog';var dI=document.createElement('input');dI.type='checkbox';if(demo)dI.checked=true;dI.onchange=function(){demo=this.checked;if(demo)startDemo();else stopDemo();if(curTab==='home')rHome();};dL.appendChild(dI);var dT=div('tog-tr');dL.appendChild(dT);var dH=div('tog-th');dL.appendChild(dH);dRow.appendChild(dL);dCard.appendChild(dRow);dCard.appendChild(sepEl());dCard.appendChild(makeRow('✏️','var(--pub)','Manuell eintragen',null,null,null,true,openMan));dCard.appendChild(sepEl());dCard.appendChild(makeRow('📊','var(--blb)','Als CSV exportieren','Excel / Steuererklärung',null,null,true,exportCSV));dCard.appendChild(sepEl());dCard.appendChild(makeRow('🖨','var(--grb)','Als PDF exportieren','Monatsbericht drucken',null,null,true,exportPDF));dCard.appendChild(sepEl());var delR=makeRow('🗑','var(--rdb)','Alle Daten löschen',null,null,'var(--rd)',false,function(){showAlert('Verlauf löschen','Alle lokalen Daten löschen?',[{label:'Abbrechen',bold:true,fn:closeAlert},{label:'Löschen',danger:true,fn:function(){E=[];svE();closeAlert();toast('Gelöscht');if(curTab==='home')rHome();}}]);});delR.querySelector('.rl').style.color='var(--rd)';dCard.appendChild(delR);f.appendChild(dCard);
 
-  var foot=div('','text-align:center;padding:20px 0 8px;color:var(--t4);font-size:12px');foot.textContent='⚡ Voltli v1.0';f.appendChild(foot);
+  var foot=div('','text-align:center;padding:20px 0 8px;color:var(--t4);font-size:12px');foot.textContent='⚡ Voltli · '+APP_VERSION;f.appendChild(foot);
   var stb=el('stb');stb.innerHTML='';stb.appendChild(f);
 }
 
