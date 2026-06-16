@@ -944,6 +944,8 @@ var _md5=function(){function a(a,b){return a+b&4294967295}function b(a,b,c,d,e,f
 function foxessSig(apiKey,ts){return _md5(apiKey+'\r\n'+ts);}
 
 var foxessLive=null,foxessLastFetch=0;
+var FOXESS_STALE_MS=30000; // Daten gelten nach 30s als veraltet
+function foxessIsStale(){return !foxessLive||!foxessLastFetch||(Date.now()-foxessLastFetch>FOXESS_STALE_MS);}
 function fetchFoxESS(silent){
   if(!S.foxessApiKey||!S.foxessDeviceSn)return;
   var ts=String(Date.now());
@@ -978,6 +980,7 @@ function fetchFoxESS(silent){
     else{if(curTab==='home')patchHome();if(curTab==='src')rSrc();}
     checkNotifications(foxessLive.soc,foxessLive.pvW);
   }).catch(function(e){
+    foxessLive=null;foxessLastFetch=0;
     trackUptime(false);
     if(!silent)toast('FoxESS: '+e.message);
   });
@@ -989,7 +992,7 @@ function patchHome(){
   // Only patch if home is already fully rendered
   var hcard=el('lv-hcard');var flowEl=el('lv-flow');
   if(!hcard||!flowEl){rHome();return;}
-  var _pfx=S.foxessEnabled&&foxessLive;
+  var _pfx=S.foxessEnabled&&!foxessIsStale();
   var lv_soc=_pfx?foxessLive.soc:(lv&&lv.battery&&lv.battery.soc||0);
   var chargeW=_pfx?foxessLive.pvW:(lv&&lv.battery&&lv.battery.chargeW||0);
   var dischargeW=_pfx?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
@@ -1671,7 +1674,7 @@ function rHome(){
   var lv_grd=lv?nf((lv.balkon&&lv.balkon.grid||0)+(src==='combined'?lv.solar&&lv.solar.grid||0:0)):0;
   var lv_soc=lv?((lv.battery&&lv.battery.soc)||(lv.balkon&&lv.balkon.soc)||0):0;
   // FoxESS überschreibt wenn aktiviert
-  if(S.foxessEnabled&&foxessLive){
+  if(S.foxessEnabled&&!foxessIsStale()){
     lv_sol=nf(foxessLive.pvW/1000);
     lv_grd=nf(foxessLive.gridW/1000);
     lv_soc=foxessLive.soc;
@@ -1685,7 +1688,7 @@ function rHome(){
 
   if(lv||foxessLive){
     // FoxESS-Werte bevorzugen wenn vorhanden
-    var _fx=S.foxessEnabled&&foxessLive;
+    var _fx=S.foxessEnabled&&!foxessIsStale();
     var pvW2=_fx?foxessLive.pvW:(lv&&lv.battery&&lv.battery.chargeW||0);
     var dischargeW=_fx?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
     var bChW2=_fx?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
@@ -1741,8 +1744,8 @@ function rHome(){
   var thd=div('fu3','display:flex;align-items:center;justify-content:space-between;margin:16px 2px 10px');var tt=div('','font-size:20px;font-weight:700');tt.textContent='Heute · '+fS(today());thd.appendChild(tt);var ab=document.createElement('button');ab.className='btn b-gh b-xs';ab.textContent='+ Eintragen';ab.onclick=openMan;thd.appendChild(ab);f.appendChild(thd);
 
   // Animated SVG energy flow card
-  if(lv||(S.foxessEnabled&&foxessLive)){
-    var _fxf=S.foxessEnabled&&foxessLive;
+  if(lv||(S.foxessEnabled&&!foxessIsStale())){
+    var _fxf=S.foxessEnabled&&!foxessIsStale();
     var fw=_fxf?foxessLive.pvW:(lv&&lv.battery&&lv.battery.chargeW||0);
     var dw=_fxf?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
     var bChW=_fxf?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
@@ -2043,7 +2046,7 @@ function rSrc(){
   f.appendChild(akBanner);
 
   // FoxESS Banner (wenn aktiviert)
-  if(S.foxessEnabled&&foxessLive){
+  if(S.foxessEnabled&&!foxessIsStale()){
     var fxBanner=div('grad-card fu2','background:linear-gradient(135deg,#f5a623,#e8870a);padding:20px;margin-bottom:12px');
     var fxTop=div('','display:flex;align-items:center;justify-content:space-between;margin-bottom:12px');
     var fxInfo=div('');
