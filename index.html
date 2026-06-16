@@ -811,10 +811,12 @@ function fetchMarstek(silent) {
       var pvW=Math.abs(parseFloat(vDev.pv||0));
       var chargeW=Math.abs(parseFloat(vDev.charge||0));
       var dischargeW=Math.abs(parseFloat(vDev.discharge||0));
-      // Grid: use CT002 load/grid if sensor configured, else Venus load/grid
-      var ctLoadRaw=parseFloat(ctDev.load||0)||parseFloat(ctDev.grid||0)||
-                    (parseFloat(ctDev.pa||0)+parseFloat(ctDev.pb||0)+parseFloat(ctDev.pc||0));
-      var loadW=S.ct002Id&&ctLoadRaw!==0?ctLoadRaw:parseFloat(vDev.load||vDev.grid||0);
+      // Grid: CT002 phase sum (pa+pb+pc) or load field, fallback to Venus
+      var ctPa=parseFloat(ctDev.pa||0),ctPb=parseFloat(ctDev.pb||0),ctPc=parseFloat(ctDev.pc||0);
+      var ctPhaseSum=ctPa+ctPb+ctPc;
+      var ctLoadRaw=ctPhaseSum!==0?ctPhaseSum:(parseFloat(ctDev.load||0)||parseFloat(ctDev.grid||0));
+      var loadW=ctLoadRaw!==0?ctLoadRaw:parseFloat(vDev.load||vDev.grid||0);
+      console.log('CT002 phases: pa='+ctPa+' pb='+ctPb+' pc='+ctPc+' sum='+ctPhaseSum+' loadW='+loadW);
       var soc=parseInt(vDev.soc||0);
       var temp=parseFloat(vDev.bat_temp||vDev.temperature||0);
       var cap=parseFloat(vDev.bat_cap||vDev.capacity||5000);
