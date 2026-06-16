@@ -2805,10 +2805,14 @@ function renderWeather(cont,d){
         body:JSON.stringify({action:'login',email:email,pwd_hash:hash})
       },16);
     }).then(function(r){return r.json();}).then(function(data){
-      if(!data.token&&data.code!==0&&data.code!==200)throw new Error(data.msg||'Anmeldung fehlgeschlagen');
+      console.log('Marstek login response:', JSON.stringify(data));
+      var codeOk=data.code===0||data.code===1||data.code===200;
+      var tok=(data.data&&data.data.token)?data.data.token:data.token;
+      if(!tok&&!codeOk)throw new Error((data.msg||data.message||'Anmeldung fehlgeschlagen')+' (code:'+data.code+')');
+      if(!tok)throw new Error('Kein Token in Antwort (code:'+data.code+' data:'+JSON.stringify(data).slice(0,120)+')');
       S.marstekEmail=email;
       S.marstekPwdHash=typeof md5==='function'?md5(pass):(S.marstekPwdHash||'');
-      S.marstekToken=(data.data&&data.data.token)?data.data.token:data.token;svS();
+      S.marstekToken=tok;svS();
       toast('Marstek verbunden');hideOv('ml');return loadDevices();
     }).catch(function(e){errEl.style.display='block';errEl.textContent=e.message;})
     .then(function(){btn.textContent='Anmelden';btn.disabled=false;});
