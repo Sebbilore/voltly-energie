@@ -522,16 +522,14 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   if(acc.date!==d){acc={date:d,solar:0,bat:0,grid:0,haus:0,t:now};return;}
   if(acc.t>0){
     var h=(now-acc.t)/3600000;
-    var einspeisungW=Math.max(0,-(loadW||0));
-    var eigenW=Math.max(0,chargeW-einspeisungW);
+    var eigenW=Math.max(0,(hausW||0)-Math.max(0,loadW||0));
     acc.solar+=chargeW*h/1000;
     acc.bat+=dischargeW*h/1000;
     acc.grid+=Math.max(0,loadW)*h/1000;
     acc.haus+=Math.max(0,hausW||0)*h/1000;
     acc.eigen+=eigenW*h/1000;
-    acc.einsp+=einspeisungW*h/1000;
   }
-  if(acc.solar<0)acc.solar=0;if(acc.bat<0)acc.bat=0;if(acc.grid<0)acc.grid=0;if(acc.haus<0)acc.haus=0;if(acc.eigen<0)acc.eigen=0;if(acc.einsp<0)acc.einsp=0;
+  if(acc.solar<0)acc.solar=0;if(acc.bat<0)acc.bat=0;if(acc.grid<0)acc.grid=0;if(acc.haus<0)acc.haus=0;if(acc.eigen<0)acc.eigen=0;
   acc.t=now;
   svAcc();
 }
@@ -1721,11 +1719,14 @@ function rSrc(){
 
   /* ── 3. Solar & Ertrag — Oranges Gradient-Banner ── */
   var solHeute=acc.date===today()?nf(acc.solar):nf((todayE&&todayE.solar&&todayE.solar.solar)||0);
+  var eigenHeute=acc.date===today()?nf(acc.eigen):0;
+  var eigenQuote=solHeute>0?Math.min(100,Math.round(eigenHeute/solHeute*100)):0;
   var solBanner=div('grad-card fu4','background:linear-gradient(135deg,#FF9500,#FF6B00);padding:20px 20px 16px');
   solBanner.innerHTML='<div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">☀️ Solar & Ertrag</div>';
   var solTiles=div('','display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0');
-  [['☀️','Solarertrag heute',solHeute.toFixed(2),'kWh'],
-   ['💰','Gesamt gespart',allSav.toFixed(2),cur]].forEach(function(s){
+  var solRows=[['☀️','Solarertrag heute',solHeute.toFixed(2),'kWh'],['💰','Gesamt gespart',allSav.toFixed(2),cur]];
+  if(eigenHeute>0)solRows.splice(1,0,['🏠','Eigenverbrauch',eigenHeute.toFixed(2),'kWh'],['📊','Eigenverbrauchsquote',eigenQuote,'%']);
+  solRows.forEach(function(s){
     var st=div('','background:rgba(255,255,255,.18);border-radius:12px;padding:12px 10px');
     st.innerHTML='<div style="font-size:18px;margin-bottom:6px">'+s[0]+'</div>'
       +'<div style="font-size:20px;font-weight:700;color:#fff;letter-spacing:-.5px">'+s[2]+'<span style="font-size:12px;opacity:.75"> '+s[3]+'</span></div>'
