@@ -1636,21 +1636,6 @@ function rSrc(){
   } else {
     var ctEmp=div('row','cursor:pointer');ctEmp.innerHTML='<div class="ric" style="background:var(--pub)">📊</div><div class="rb"><div class="rl">Energiefluss</div><div class="rs">Marstek verbinden für Live-Daten</div></div><div class="rch">&rsaquo;</div>';ctEmp.onclick=function(){showOv('ml');};ctCard.appendChild(ctEmp);f.appendChild(ctCard);
   }
-  // Debug button — shows raw API response to diagnose field names
-  if(window._lastDeviceList&&lv&&lv.source==='cloud'){
-    var dbgBtn=document.createElement('button');dbgBtn.className='btn b-fi b-xs';dbgBtn.style.cssText='width:100%;margin-top:6px;font-size:12px;color:var(--t4)';dbgBtn.textContent='🔍 API Rohdaten anzeigen';
-    dbgBtn.onclick=function(){
-      var devs=window._lastDeviceList||[];
-      var lines=[];
-      devs.forEach(function(d,i){
-        lines.push('── Gerät '+(i+1)+': '+d.name+' ('+d.type+') ──');
-        var keys=['soc','charge','discharge','load','pv','grid','bat_soc','bat_power','power','chargepower','dischargepower','pa','pb','pc','va','vb','vc','ia','ib','ic','bat_temp','temperature','bat_cap','capacity','status','report_time'];
-        keys.forEach(function(k){if(d[k]!==undefined&&d[k]!==null&&d[k]!=='')lines.push('  '+k+': '+d[k]);});
-      });
-      showAlert('API Rohdaten',lines.join('\n'),[{label:'Schließen',bold:true,fn:closeAlert}]);
-    };
-    f.appendChild(dbgBtn);
-  }
 
   /* ── 1b. CT002 Lokal (Phasenwerte) ── */
   if(ct002Local&&ct002Local.status==='ok'){
