@@ -956,22 +956,28 @@ function fetchFoxESS(silent){
     body:JSON.stringify({sn:S.foxessDeviceSn,variables:['pvPower','feedinPower','gridConsumptionPower','generationPower','SoC','batChargePower','batDischargePower']})
   }).then(function(r){return r.json();}).then(function(d){
     if(!d.result)return;
-    var res=d.result;
+    // FoxESS liefert manchmal gecachte Offline-Werte — errno prüfen
+    if(d.errno&&d.errno!==0)return;
+    var res=Array.isArray(d.result)?d.result:(d.result.datas||[]);
     function gfv(key){var f=res.find(function(x){return x.variable===key;});return f?parseFloat(f.value)||0:0;}
-    // Prüfen ob Gerätedaten aktuell sind — FoxESS liefert auch Offline-Cache-Werte
-    // Jeder Datenpunkt hat ein "time"-Feld: wann der Wechselrichter es zuletzt gemeldet hat
-    var pvEntry=res.find(function(x){return x.variable==='pvPower';});
-    if(pvEntry&&pvEntry.time){
-      var devTime=new Date(pvEntry.time).getTime();
-      if(isNaN(devTime)||Date.now()-devTime>600000){
-        // Wechselrichter hat seit >10 Min nicht gemeldet → Offline
+    // Zeitstempel des letzten Geräteupdates prüfen (falls vorhanden)
+    var firstEntry=res[0];
+    var dataTime=firstEntry&&(firstEntry.time||firstEntry.dataTime||firstEntry.collectTime);
+    if(dataTime){
+      var devTime=new Date(dataTime.replace(' ','T')).getTime();
+      if(!isNaN(devTime)&&Date.now()-devTime>600000){
         foxessLive=null;foxessLastFetch=0;
         if(curTab==='home')patchHome();
         return;
       }
     }
+    // Physikalische Plausibilitätsprüfung: Solar nur tagsüber möglich
+    var rawPv=Math.round(gfv('pvPower'));
+    var rawGen=Math.round(gfv('generationPower'));
+    // Plausibilitätsprüfung: pvPower ohne generationPower ist widersprüchlich → Offline-Cache
+    if(rawPv>50&&rawGen===0){rawPv=0;}
     foxessLive={
-      pvW:Math.round(gfv('pvPower')),
+      pvW:rawPv,
       feedinW:Math.round(gfv('feedinPower')),
       gridW:Math.round(gfv('gridConsumptionPower')),
       genW:Math.round(gfv('generationPower')),
