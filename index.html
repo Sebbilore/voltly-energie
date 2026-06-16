@@ -1985,10 +1985,10 @@ function rSrc(){
   var ctCard=div('card fu');
   if(lv&&lv.source==='cloud'&&ct){
     var netW=ct.load||0;
-    var pvW2=ct.pv||0;
+    var pvW2=S.foxessEnabled&&!foxessIsStale()?foxessLive.pvW:0; // Solar nur von FoxESS
     var disW2=ct.discharge||0;
     var chW2=ct.charge||0;
-    var hausW2=ct.haus||Math.max(0,Math.round(pvW2+disW2+Math.max(0,netW)-chW2));
+    var hausW2=Math.max(0,Math.round(pvW2+disW2+Math.max(0,netW)-chW2));
     var profitToday=parseFloat(ct.profit||0);
     var tiles=[
       {ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:pvW2,u:'W',l:'Solar PV'},
