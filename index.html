@@ -892,7 +892,12 @@ function fetchMarstek(silent) {
       var profit=parseFloat(vDev.profit||0);
       var hausW=Math.max(0,Math.round(pvW+dischargeW+Math.max(0,loadW)-chargeW));
 
-      updateAcc(pvW,dischargeW,loadW,hausW);
+      // Wenn FoxESS aktiv: Solar kommt von FoxESS, Marstek liefert nur Akkudaten
+      if(S.foxessEnabled&&S.foxessApiKey){
+        updateAcc(0,dischargeW,loadW,Math.max(0,Math.round(dischargeW+Math.max(0,loadW))));
+      } else {
+        updateAcc(pvW,dischargeW,loadW,hausW);
+      }
       checkNotifications(soc,pvW);
       trackUptime(true);checkAnomalie();checkMorgenBriefing();checkTagesrekord();
       var hs={ts:Date.now(),chargeW:pvW,dischargeW:dischargeW,loadW:loadW,soc:soc};
