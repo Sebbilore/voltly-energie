@@ -860,17 +860,21 @@ function patchHome(){
   var hcard=el('lv-hcard');var flowEl=el('lv-flow');
   if(!hcard||!flowEl){rHome();return;}
   var lv_soc=lv.battery&&lv.battery.soc||0;
-  var chargeW=lv.battery&&lv.battery.chargeW||0;
+  var chargeW=lv.battery&&lv.battery.chargeW||0;   // pvW (solar)
   var dischargeW=lv.battery&&lv.battery.dischargeW||0;
-  var isCharging=chargeW>10;var isDischarging=dischargeW>10;
+  var bChWp=lv.venus&&lv.venus.charge||0;           // battery charge rate (any source)
+  var isSolar=chargeW>10;var isBatCharging=bChWp>10;
+  var isCharging=isSolar||isBatCharging;var isDischarging=dischargeW>10;
   var onGrad=isCharging||isDischarging;
   var grad=isCharging?'linear-gradient(135deg,#FF9500,#FF6B00)':isDischarging?'linear-gradient(135deg,#007AFF,#0051D4)':'';
   // Update hero card style
   hcard.style.background=onGrad?grad:'';
   hcard.style.color=onGrad?'#fff':'';
   hcard.style.boxShadow=onGrad?'0 4px 24px rgba(0,0,0,.2)':'';
+  // Update hero label
+  var nsEl=hcard.querySelector('.hc-ns');if(nsEl)nsEl.textContent=isSolar?'☀️ Solar aktiv':isBatCharging?'⚡ Akku lädt':isDischarging?'🔋 Akku entlädt':'⏸ Akku inaktiv';
   // Update watt value
-  var heroW=isCharging?chargeW:isDischarging?dischargeW:0;
+  var heroW=isSolar?chargeW:isBatCharging?bChWp:isDischarging?dischargeW:0;
   var wEl=el('hero-sol');if(wEl)wEl.textContent=(heroW/1000).toFixed(2);
   // Update SOC ring
   var socRingEl=hcard.querySelector('svg');
@@ -1118,9 +1122,12 @@ function rHome(){
 
 
   if(lv){
-    var chargeW=lv.battery&&lv.battery.chargeW||0;
+    var pvW2=lv.battery&&lv.battery.chargeW||0;   // Solar PV watts
     var dischargeW=lv.battery&&lv.battery.dischargeW||0;
-    var isCharging=chargeW>10;var isDischarging=dischargeW>10;
+    var bChW2=lv.venus&&lv.venus.charge||0;        // Battery charge rate (any source)
+    var isSolar=pvW2>10;
+    var isBatCharging=bChW2>10;
+    var isCharging=isSolar||isBatCharging;var isDischarging=dischargeW>10;
     var onGrad=isCharging||isDischarging;
     var grad=isCharging?'linear-gradient(135deg,#FF9500,#FF6B00)':isDischarging?'linear-gradient(135deg,#007AFF,#0051D4)':'';
     var hcard=div('hc fu2');hcard.id='lv-hcard';
@@ -1134,18 +1141,18 @@ function rHome(){
     hcard.appendChild(ey);
     var top=div('','display:flex;align-items:flex-start;justify-content:space-between;gap:12px');
     var nw=div('','flex:1');
-    var heroW=isCharging?chargeW:isDischarging?dischargeW:0;
+    var heroW=isSolar?pvW2:isBatCharging?bChW2:isDischarging?dischargeW:0;
     var heroCol=onGrad?'#fff':isCharging?'var(--or)':isDischarging?'var(--bl)':'var(--t3)';
     var nv=div('','font-size:56px;font-weight:700;letter-spacing:-2px;line-height:1;font-variant-numeric:tabular-nums;color:'+heroCol);
     nv.innerHTML='<span id="hero-sol">'+(heroW/1000).toFixed(2)+'</span><span style="font-size:20px;font-weight:400;opacity:.7"> kW</span>';
     nw.appendChild(nv);
-    var ns=div('','font-size:14px;margin-top:6px;font-weight:500;color:'+(onGrad?'rgba(255,255,255,.85)':'var(--t3)'));
-    ns.textContent=isCharging?'☀️ Solar aktiv':isDischarging?'🔋 Akku entlädt':'⏸ Akku inaktiv';
+    var ns=div('hc-ns','font-size:14px;margin-top:6px;font-weight:500;color:'+(onGrad?'rgba(255,255,255,.85)':'var(--t3)'));
+    ns.textContent=isSolar?'☀️ Solar aktiv':isBatCharging?'⚡ Akku lädt':isDischarging?'🔋 Akku entlädt':'⏸ Akku inaktiv';
     nw.appendChild(ns);
     top.appendChild(nw);top.appendChild(socRing(lv_soc,96,onGrad));hcard.appendChild(top);
     var sepC=onGrad?'rgba(255,255,255,.25)':'var(--sep)';
     var hr=div('hc-row','border-top:.5px solid '+sepC+';margin-top:16px;padding-top:14px');
-    var socLabel=lv_soc+'%'+(dischargeW>0?' ↓'+Math.round(dischargeW)+'W':chargeW>0?' ☀️'+Math.round(chargeW)+'W':'');
+    var socLabel=lv_soc+'%'+(dischargeW>0?' ↓'+Math.round(dischargeW)+'W':bChW2>0?' ⚡'+Math.round(bChW2)+'W':'');
     [{id:'hero-bat',v:socLabel,l:'Akku SOC',c:onGrad?'#fff':'var(--bl)',tip:'Ladestand.'},
      {id:'hero-grd',v:lv_grd.toFixed(2)+' kW',l:'Netz',c:onGrad?'rgba(255,255,255,.9)':'var(--rd)',tip:'Netzbezug jetzt.'},
      {v:nf(gv(todayE,'save')).toFixed(2)+' '+cur,l:'Heute gespart',c:onGrad?'rgba(255,255,255,.9)':'var(--gr)',tip:'Solar+Akku × Strompreis.'}
