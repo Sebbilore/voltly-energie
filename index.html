@@ -527,7 +527,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
 }
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
-  marstekDeviceIds:[], // multiple selected device IDs
+  marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
   strompreis:0.32, einspeise:0.082, currency:'EUR',
   autoFetch:true, fetchSec:5, activeSrc:'combined', chartPeriod:'week', darkMode:'auto' };
 
@@ -801,18 +801,20 @@ function fetchMarstek(silent) {
       var ids=Array.isArray(S.marstekDeviceIds)&&S.marstekDeviceIds.length?S.marstekDeviceIds:(S.marstekDeviceId?[S.marstekDeviceId]:[]);
       var allDev=ids.length?list.filter(function(x){return ids.indexOf(x.devid||x.mac||x.sn)>=0;}):list;
       var vDev=allDev.find(function(x){return x.type!=='HME-4';})||allDev[0]||list[0]||{};
-      // CT002 (HME-4) — used for grid measurement via ct.load even if is_support:0
-      var ctDev=list.find(function(x){return x.type==='HME-4';})||{};
+      // CT002 (HME-4) — grid sensor, use when configured via S.ct002Id
+      var ctDev=list.find(function(x){return (x.devid||x.mac||x.sn)===S.ct002Id;})||
+                (S.ct002Id?{}:list.find(function(x){return x.type==='HME-4';})||{});
       console.log('Venus device:',JSON.stringify(vDev));
-      console.log('CT002 device:',JSON.stringify(ctDev));
+      if(Object.keys(ctDev).length)console.log('CT002 device:',JSON.stringify(ctDev));
       window._lastDeviceList=list;
 
-      var pvW=Math.abs(parseFloat(vDev.pv||0));           // Solar PV input (W) — API may return negative
-      var chargeW=Math.abs(parseFloat(vDev.charge||0));    // Battery charge rate (W)
-      var dischargeW=Math.abs(parseFloat(vDev.discharge||0)); // Battery→house (W)
-      // Grid: prefer CT002 load field, fallback to Venus load/grid
-      var ctLoad=parseFloat(ctDev.load||ctDev.grid||0);
-      var loadW=ctLoad!==0?ctLoad:parseFloat(vDev.load||vDev.grid||0); // Grid (W) — sign encodes import/export
+      var pvW=Math.abs(parseFloat(vDev.pv||0));
+      var chargeW=Math.abs(parseFloat(vDev.charge||0));
+      var dischargeW=Math.abs(parseFloat(vDev.discharge||0));
+      // Grid: use CT002 load/grid if sensor configured, else Venus load/grid
+      var ctLoadRaw=parseFloat(ctDev.load||0)||parseFloat(ctDev.grid||0)||
+                    (parseFloat(ctDev.pa||0)+parseFloat(ctDev.pb||0)+parseFloat(ctDev.pc||0));
+      var loadW=S.ct002Id&&ctLoadRaw!==0?ctLoadRaw:parseFloat(vDev.load||vDev.grid||0);
       var soc=parseInt(vDev.soc||0);
       var temp=parseFloat(vDev.bat_temp||vDev.temperature||0);
       var cap=parseFloat(vDev.bat_cap||vDev.capacity||5000);
@@ -999,19 +1001,43 @@ function loadDevices(token) {
       var wrap=div('card');body.innerHTML='';
       var hint=div('','font-size:13px;color:var(--t3);padding:8px 18px 4px');hint.textContent='Mehrere Geräte wählbar';body.appendChild(hint);
       body.appendChild(wrap);
+      // Venus devices
       list.filter(function(d){return d.type!=='HME-4';}).forEach(function(d,i){
         if(i>0)wrap.appendChild(sepEl());
         var id=d.devid||d.mac||d.sn||String(i),name=d.name||d.sn||'Marstek',model=d.model||d.type||'Venus';
         var sel=devSelected(id);
-        var ic='🔋';
         var row=div('row');
-        row.innerHTML='<div class="ric" style="background:'+(sel?'var(--grb)':'var(--blb)')+'">'+ic+'</div>'
+        row.innerHTML='<div class="ric" style="background:'+(sel?'var(--grb)':'var(--blb)')+'">🔋</div>'
           +'<div class="rb"><div class="rl">'+esc(name)+'</div>'
           +'<div class="rs">'+esc(model)+' &middot; '+esc(id)+'</div></div>'
           +'<div style="font-size:22px;padding-right:4px">'+(sel?'✅':'⬜')+'</div>';
         (function(id,name,model){row.onclick=function(){pickDev(id,name,model);};}(id,name,model));
         wrap.appendChild(row);
       });
+      // CT002 devices — grid sensor
+      var ctDevs=list.filter(function(d){return d.type==='HME-4';});
+      if(ctDevs.length){
+        var ctHd=div('','font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:12px 18px 4px');
+        ctHd.textContent='⚡ Netz-Sensor (CT002)';body.appendChild(ctHd);
+        var ctWrap=div('card');body.appendChild(ctWrap);
+        ctDevs.forEach(function(d,i){
+          if(i>0)ctWrap.appendChild(sepEl());
+          var id=d.devid||d.mac||d.sn||String(i),name=d.name||d.sn||'CT002',model=d.type||'HME-4';
+          var ctEnabled=S.ct002Id===id;
+          var row=div('row');
+          var support=d.is_support===1||d.is_support==='1';
+          row.innerHTML='<div class="ric" style="background:var(--tlb)">⚡</div>'
+            +'<div class="rb"><div class="rl">'+esc(name)+'</div>'
+            +'<div class="rs">Netz-Sensor &middot; '+(support?'Aktiv':'Inaktiv (is_support:0)')+'</div></div>'
+            +'<div style="font-size:22px;padding-right:4px">'+(ctEnabled?'✅':'⬜')+'</div>';
+          row.onclick=function(){
+            S.ct002Id=ctEnabled?'':id;svS();
+            toast(ctEnabled?'CT002 deaktiviert':'CT002 als Netz-Sensor aktiviert');
+            loadDevices();
+          };
+          ctWrap.appendChild(row);
+        });
+      }
       var doneBtn=document.createElement('button');doneBtn.className='btn b-fi';doneBtn.style.cssText='width:calc(100% - 32px);margin:12px 16px 0';doneBtn.textContent='Fertig';
       doneBtn.onclick=function(){hideOv('dv');schedFetch();rSet();};body.appendChild(doneBtn);
       showOv('dv');
