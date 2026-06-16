@@ -990,10 +990,18 @@ function doFetchFoxESS(silent){
     var res=Array.isArray(d.result)?d.result:(d.result.datas||[]);
     function gfv(key){var f=res.find(function(x){return x.variable===key;});return f?parseFloat(f.value)||0:0;}
     var rawPv=Math.round(gfv('pvPower'));
-    // Device-lastTime-Check: wenn Wechselrichter seit >10 Min nicht gemeldet → Offline-Cache → 0
-    if(rawPv>0&&foxessDeviceChecked>0&&foxessDeviceLastTime>0&&(Date.now()-foxessDeviceLastTime>600000)){rawPv=0;}
-    // Fallback: wenn lastTime unbekannt aber pvPower > 0 und generationPower = 0 → verdächtig
-    if(rawPv>0&&foxessDeviceChecked>0&&foxessDeviceLastTime===0){rawPv=0;}
+    // Wenn Device-Daten veraltet sind → ALLE Werte stale, nicht nur pvW
+    var foxessDataStale=false;
+    if(foxessDeviceChecked>0){
+      if(foxessDeviceLastTime>0&&(Date.now()-foxessDeviceLastTime>600000))foxessDataStale=true;
+      if(foxessDeviceLastTime===0)foxessDataStale=true; // lastTime unbekannt = kein Vertrauen
+    }
+    if(foxessDataStale){
+      // Gerät offline/Cache — foxessLive verwerfen, Marstek übernimmt
+      foxessLive=null;foxessLastFetch=0;
+      if(curTab==='home')patchHome();
+      return;
+    }
     foxessLive={
       pvW:rawPv,
       feedinW:Math.round(gfv('feedinPower')),
@@ -1024,15 +1032,15 @@ function doFetchFoxESS(silent){
 function fetchAll(){var ic=el('ri');if(ic)ic.className='spin';fetchMarstek(false);setTimeout(function(){var ic=el('ri');if(ic)ic.className='';},1500);}
 
 function patchHome(){
-  var lv=al();if(!lv)return;
-  // Only patch if home is already fully rendered
+  var lv=al();
   var hcard=el('lv-hcard');var flowEl=el('lv-flow');
   if(!hcard||!flowEl){rHome();return;}
   var _pfx=S.foxessEnabled&&!foxessIsStale();
-  var lv_soc=_pfx?foxessLive.soc:(lv&&lv.battery&&lv.battery.soc||0);
-  var chargeW=_pfx?foxessLive.pvW:0; // Solar nur von FoxESS
-  var dischargeW=_pfx?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
-  var bChWp=_pfx?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
+  // Wenn FoxESS aktiv aber stale → kein Marstek-Fallback, Werte = 0
+  var lv_soc=_pfx?foxessLive.soc:(lv&&!S.foxessEnabled?lv.battery&&lv.battery.soc||0:0);
+  var chargeW=_pfx?foxessLive.pvW:0;
+  var dischargeW=_pfx?foxessLive.batDischargeW:(!S.foxessEnabled?lv&&lv.battery&&lv.battery.dischargeW||0:0);
+  var bChWp=_pfx?foxessLive.batChargeW:(!S.foxessEnabled?lv&&lv.venus&&lv.venus.charge||0:0);
   var isSolar=chargeW>10;var isBatCharging=bChWp>10;
   var isCharging=isSolar||isBatCharging;var isDischarging=dischargeW>10;
   var onGrad=isCharging||isDischarging;
@@ -1724,10 +1732,9 @@ function rHome(){
   var rfBtn=document.createElement('button');rfBtn.className='btn b-fi b-xs';rfBtn.innerHTML='<span id="ri">↻</span>';rfBtn.onclick=fetchAll;hdr.appendChild(rfBtn);f.appendChild(hdr);
 
 
-  if(lv||foxessLive){
-    // FoxESS-Werte bevorzugen wenn vorhanden
-    var _fx=S.foxessEnabled&&!foxessIsStale();
-    var pvW2=_fx?foxessLive.pvW:S.foxessEnabled?0:(lv&&lv.battery&&lv.battery.chargeW||0);
+  var _fx=S.foxessEnabled&&!foxessIsStale();
+  if(_fx||(lv&&!S.foxessEnabled)){
+    var pvW2=_fx?foxessLive.pvW:0;
     var dischargeW=_fx?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
     var bChW2=_fx?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
     if(_fx&&!lv_soc&&foxessLive.soc)lv_soc=foxessLive.soc;
@@ -1781,10 +1788,11 @@ function rHome(){
 
   var thd=div('fu3','display:flex;align-items:center;justify-content:space-between;margin:16px 2px 10px');var tt=div('','font-size:20px;font-weight:700');tt.textContent='Heute · '+fS(today());thd.appendChild(tt);var ab=document.createElement('button');ab.className='btn b-gh b-xs';ab.textContent='+ Eintragen';ab.onclick=openMan;thd.appendChild(ab);f.appendChild(thd);
 
-  // Animated SVG energy flow card
-  if(lv||(S.foxessEnabled&&!foxessIsStale())){
-    var _fxf=S.foxessEnabled&&!foxessIsStale();
-    var fw=_fxf?foxessLive.pvW:0; // Solar nur von FoxESS
+  // Animated SVG energy flow card — wenn FoxESS aktiv, nur FoxESS-Daten (kein Marstek-Fallback)
+  var _fxActive=S.foxessEnabled&&!foxessIsStale();
+  if(_fxActive||(lv&&!S.foxessEnabled)){
+    var _fxf=_fxActive;
+    var fw=_fxf?foxessLive.pvW:0;
     var dw=_fxf?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
     var bChW=_fxf?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
     var lw=_fxf?(foxessLive.gridW-foxessLive.feedinW):(lv&&lv.venus&&lv.venus.load||0);
