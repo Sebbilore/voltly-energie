@@ -704,7 +704,7 @@ function doSignIn() {
     Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
       var cloudS=results[0], cloudAcc=results[1], rows=results[2];
       if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch(); }
-      if(cloudAcc && cloudAcc.date===today()){ acc=cloudAcc; }
+      if(cloudAcc && cloudAcc.date===today()){ acc=Object.assign({eigen:0,haus:0,solar:0,bat:0,grid:0,t:0},cloudAcc); }
       var localE=ldE();
       if(rows && rows.length >= localE.length){ E=rows; svE(); }
       else if(localE.length > (rows?rows.length:0)){
@@ -2271,7 +2271,7 @@ function renderWeather(cont,d){
         Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
           var cloudS=results[0], cloudAcc=results[1], rows=results[2];
           if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch(); }
-          if(cloudAcc && cloudAcc.date===today()){ acc=cloudAcc; }
+          if(cloudAcc && cloudAcc.date===today()){ acc=Object.assign({eigen:0,haus:0,solar:0,bat:0,grid:0,t:0},cloudAcc); }
           var localE=ldE();
           if(rows && rows.length >= localE.length){ E=rows; svE(); }
           else if(localE.length > (rows?rows.length:0)){
