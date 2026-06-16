@@ -946,8 +946,25 @@ function foxessSig(apiKey,ts){return _md5(apiKey+'\r\n'+ts);}
 var foxessLive=null,foxessLastFetch=0;
 var FOXESS_STALE_MS=30000; // Daten gelten nach 30s als veraltet
 function foxessIsStale(){return !foxessLive||!foxessLastFetch||(Date.now()-foxessLastFetch>FOXESS_STALE_MS);}
+var foxessOnline=null,foxessStatusLast=0;
+function fetchFoxESSStatus(){
+  if(!S.foxessApiKey||!S.foxessDeviceSn)return;
+  var ts=String(Date.now());
+  var sig=foxessSig(S.foxessApiKey,ts);
+  fetch('https://www.foxesscloud.com/op/v1/device/detail?sn='+encodeURIComponent(S.foxessDeviceSn),{
+    headers:{'token':S.foxessApiKey,'timestamp':ts,'signature':sig,'lang':'de'}
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.result&&d.result.status!==undefined){
+      // 1=online, alles andere=offline
+      foxessOnline=(d.result.status===1);
+      foxessStatusLast=Date.now();
+    }
+  }).catch(function(){foxessOnline=false;});
+}
 function fetchFoxESS(silent){
   if(!S.foxessApiKey||!S.foxessDeviceSn)return;
+  // Device-Status alle 60s aktualisieren
+  if(Date.now()-foxessStatusLast>60000)fetchFoxESSStatus();
   var ts=String(Date.now());
   var sig=foxessSig(S.foxessApiKey,ts);
   fetch('https://www.foxesscloud.com/op/v1/device/real/query',{
@@ -971,11 +988,9 @@ function fetchFoxESS(silent){
         return;
       }
     }
-    // Physikalische Plausibilitätsprüfung: Solar nur tagsüber möglich
     var rawPv=Math.round(gfv('pvPower'));
-    var rawGen=Math.round(gfv('generationPower'));
-    // Plausibilitätsprüfung: pvPower ohne generationPower ist widersprüchlich → Offline-Cache
-    if(rawPv>50&&rawGen===0){rawPv=0;}
+    // Wenn Device-Status bekannt und Gerät offline → kein Solar
+    if(foxessOnline===false){rawPv=0;}
     foxessLive={
       pvW:rawPv,
       feedinW:Math.round(gfv('feedinPower')),
