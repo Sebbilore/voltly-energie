@@ -946,32 +946,26 @@ function foxessSig(apiKey,ts){return _md5(apiKey+'\r\n'+ts);}
 var foxessLive=null,foxessLastFetch=0;
 var FOXESS_STALE_MS=30000;
 function foxessIsStale(){return !foxessLive||!foxessLastFetch||(Date.now()-foxessLastFetch>FOXESS_STALE_MS);}
-// Stuck-Value-Detection: wenn pvPower N Fetches identisch bleibt → Offline-Cache
-var foxessPvHistory=[];
-var FOXESS_STUCK_COUNT=6; // ~18s bei 3s Intervall
-function foxessPvIsStuck(v){
-  foxessPvHistory.push(v);
-  if(foxessPvHistory.length>FOXESS_STUCK_COUNT)foxessPvHistory.shift();
-  if(v===0)return false; // 0 ist kein stuck-Wert
-  if(foxessPvHistory.length<FOXESS_STUCK_COUNT)return false;
-  return foxessPvHistory.every(function(x){return x===v;});
-}
 var foxessDeviceLastTime=0,foxessDeviceChecked=0;
-function fetchFoxESSStatus(cb){
-  if(!S.foxessApiKey||!S.foxessDeviceSn){if(cb)cb();return;}
+var FOXESS_PROXY='https://yhvosmgioggkgimqnmqp.supabase.co/functions/v1/voltly/foxess';
+function foxessProxyPost(body){
   var ts=String(Date.now());
   var sig=foxessSig(S.foxessApiKey,ts);
-  fetch('https://www.foxesscloud.com/op/v1/device/detail?sn='+encodeURIComponent(S.foxessDeviceSn),{
-    headers:{'token':S.foxessApiKey,'timestamp':ts,'signature':sig,'lang':'de'}
-  }).then(function(r){return r.json();}).then(function(d){
+  return fetch(FOXESS_PROXY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(Object.assign({apiKey:S.foxessApiKey,deviceSn:S.foxessDeviceSn,timestamp:ts,signature:sig},body))
+  }).then(function(r){return r.json();});
+}
+function fetchFoxESSStatus(cb){
+  if(!S.foxessApiKey||!S.foxessDeviceSn){if(cb)cb();return;}
+  foxessProxyPost({action:'detail'}).then(function(d){
     foxessDeviceChecked=Date.now();
-    // Debug: rohe Antwort speichern
     window._foxessDetailRaw=d;
     if(d.result){
-      var lt=d.result.lastTime||d.result.updateTime||d.result.lastUpdateTime||d.result.activationDate||'';
+      var lt=d.result.lastTime||d.result.updateTime||d.result.lastUpdateTime||'';
       if(lt){foxessDeviceLastTime=new Date(lt.replace(' ','T')).getTime()||0;}
-      if(d.result.status!==undefined&&!lt){
-        // status 1=online, 2=offline — nur als Fallback
+      else if(d.result.status!==undefined){
         foxessDeviceLastTime=(d.result.status===1||d.result.status==='1')?Date.now():0;
       }
     }
@@ -980,23 +974,24 @@ function fetchFoxESSStatus(cb){
 }
 function fetchFoxESS(silent){
   if(!S.foxessApiKey||!S.foxessDeviceSn)return;
-  doFetchFoxESS(silent);
+  // Device-Status alle 60s prüfen (über Proxy — kein CORS-Problem)
+  if(Date.now()-foxessDeviceChecked>60000){
+    fetchFoxESSStatus(function(){doFetchFoxESS(silent);});
+  } else {
+    doFetchFoxESS(silent);
+  }
 }
 function doFetchFoxESS(silent){
-  var ts=String(Date.now());
-  var sig=foxessSig(S.foxessApiKey,ts);
-  fetch('https://www.foxesscloud.com/op/v1/device/real/query',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','token':S.foxessApiKey,'timestamp':ts,'signature':sig,'lang':'de'},
-    body:JSON.stringify({sn:S.foxessDeviceSn,variables:['pvPower','feedinPower','gridConsumptionPower','generationPower','SoC','batChargePower','batDischargePower']})
-  }).then(function(r){return r.json();}).then(function(d){
+  foxessProxyPost({action:'real'}).then(function(d){
     if(!d.result)return;
     if(d.errno&&d.errno!==0)return;
     var res=Array.isArray(d.result)?d.result:(d.result.datas||[]);
     function gfv(key){var f=res.find(function(x){return x.variable===key;});return f?parseFloat(f.value)||0:0;}
     var rawPv=Math.round(gfv('pvPower'));
-    // Stuck-Value: wenn pvPower N Fetches identisch bleibt → FoxESS-Offline-Cache → 0
-    if(foxessPvIsStuck(rawPv)){rawPv=0;}
+    // Device-lastTime-Check: wenn Wechselrichter seit >10 Min nicht gemeldet → Offline-Cache → 0
+    if(rawPv>0&&foxessDeviceChecked>0&&foxessDeviceLastTime>0&&(Date.now()-foxessDeviceLastTime>600000)){rawPv=0;}
+    // Fallback: wenn lastTime unbekannt aber pvPower > 0 und generationPower = 0 → verdächtig
+    if(rawPv>0&&foxessDeviceChecked>0&&foxessDeviceLastTime===0){rawPv=0;}
     foxessLive={
       pvW:rawPv,
       feedinW:Math.round(gfv('feedinPower')),
