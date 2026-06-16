@@ -10,6 +10,8 @@
 <title>Voltli</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
 <!-- Firebase compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -1093,12 +1095,20 @@ function openCo(){el('co-p').value=S.strompreis;el('co-e').value=S.einspeise;el(
 function mkCH(id,type,labels,datasets,extra){
   if(CH[id]){CH[id].destroy();delete CH[id];}
   var ctx=el(id);if(!ctx)return;
+  var multiDs=datasets&&datasets.length>1;
   var opts={responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(255,255,255,.98)',borderColor:'rgba(0,0,0,.08)',borderWidth:1,titleColor:'#8E8E93',bodyColor:'#1C1C1E',cornerRadius:12,padding:12,displayColors:true,boxWidth:8,boxHeight:8,boxPadding:4}},
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:multiDs,position:'top',labels:{color:'#8E8E93',boxWidth:10,boxHeight:10,padding:12,font:{size:11}}},
+      tooltip:{backgroundColor:'rgba(255,255,255,.98)',borderColor:'rgba(0,0,0,.08)',borderWidth:1,titleColor:'#8E8E93',bodyColor:'#1C1C1E',cornerRadius:12,padding:12,displayColors:true,boxWidth:8,boxHeight:8,boxPadding:4},
+      zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}
+    },
     scales:{x:{grid:{display:false},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}}},
     animation:{duration:460,easing:'easeInOutQuart'}};
   if(extra)Object.assign(opts,extra);
   CH[id]=new Chart(ctx,{type:type,data:{labels:labels,datasets:datasets},options:opts});
+  // Zoom-Reset per Doppelklick
+  ctx.ondblclick=function(){if(CH[id])CH[id].resetZoom();};
 }
 
 function getChartData(entries,period){
