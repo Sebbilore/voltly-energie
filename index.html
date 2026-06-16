@@ -955,12 +955,13 @@ function fetchFoxESSStatus(cb){
     headers:{'token':S.foxessApiKey,'timestamp':ts,'signature':sig,'lang':'de'}
   }).then(function(r){return r.json();}).then(function(d){
     foxessDeviceChecked=Date.now();
+    // Debug: rohe Antwort speichern
+    window._foxessDetailRaw=d;
     if(d.result){
-      // lastTime = wann der Wechselrichter zuletzt Daten gesendet hat
-      var lt=d.result.lastTime||d.result.updateTime||d.result.lastUpdateTime||'';
+      var lt=d.result.lastTime||d.result.updateTime||d.result.lastUpdateTime||d.result.activationDate||'';
       if(lt){foxessDeviceLastTime=new Date(lt.replace(' ','T')).getTime()||0;}
-      // status: 1=online 2=offline (manche APIs: 0=offline 1=online)
       if(d.result.status!==undefined&&!lt){
+        // status 1=online, 2=offline — nur als Fallback
         foxessDeviceLastTime=(d.result.status===1||d.result.status==='1')?Date.now():0;
       }
     }
