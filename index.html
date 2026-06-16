@@ -1517,23 +1517,23 @@ function rHome(){
   var acEigen=acc.date===today()?nf(acc.eigen):0;
   var acEinsp=acc.date===today()?nf(acc.einsp):0;
   var eigenQ=acSol>0?Math.min(100,Math.round(acEigen/acSol*100)):0;
-  [{ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:acSol.toFixed(2),u:'kWh',l:'Solarertrag',tip:'Gesamte Solarproduktion seit Mitternacht.'},
-   {ic:'🏠',bg:'var(--pub)',c:'var(--pu)',v:acEigen.toFixed(2),u:'kWh',l:'Eigenverbrauch',tip:'Solar direkt selbst genutzt (nicht eingespeist). Quote: '+eigenQ+'%'},
-   {ic:'📤',bg:'var(--tlb)',c:'var(--tl)',v:acEinsp.toFixed(2),u:'kWh',l:'Einspeisung',tip:'Ins Netz eingespeiste Energie heute. × '+S.einspeise+' '+cur+'/kWh = '+nf(acEinsp*S.einspeise).toFixed(2)+' '+cur},
-   {ic:'⚡',bg:'var(--rdb)',c:'var(--rd)',v:acGrd.toFixed(2),u:'kWh',l:'Netzbezug',tip:'Aus dem Netz bezogene Energie heute.'},
-   {ic:'💶',bg:'var(--grb)',c:'var(--gr)',v:acSav.toFixed(2),u:cur,l:'Ersparnis',tip:'(Solar+Akku) × '+S.strompreis+' '+cur+'/kWh'}
-  ].forEach(function(t){tg.appendChild(makeTile(t.ic,t.bg,t.v,t.u,t.c,t.l,t.tip));});
-  // Effizienz + Prognose Tiles
-  var eff=effScore();
-  tg.appendChild(makeTile('📊','var(--pub)',eff,'%','var(--pu)','Effizienz heute','Anteil Eigenenergie am Gesamtverbrauch.'));
-  var progV='—',progC='var(--t3)',progTip='Wetter-Tab öffnen für Prognose.';
-  if(weatherCache&&weatherCache.daily&&weatherCache.daily.sunshine_duration){
+  var baseTiles=[
+    {ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:acSol.toFixed(2),u:'kWh',l:'Solarertrag',tip:'Gesamte Solarproduktion seit Mitternacht.'},
+    {ic:'⚡',bg:'var(--rdb)',c:'var(--rd)',v:acGrd.toFixed(2),u:'kWh',l:'Netzbezug',tip:'Aus dem Netz bezogene Energie heute.'},
+    {ic:'💶',bg:'var(--grb)',c:'var(--gr)',v:acSav.toFixed(2),u:cur,l:'Ersparnis',tip:'(Solar+Akku) × '+S.strompreis+' '+cur+'/kWh'}
+  ];
+  if(acEigen>0)baseTiles.splice(1,0,{ic:'🏠',bg:'var(--pub)',c:'var(--pu)',v:acEigen.toFixed(2),u:'kWh',l:'Eigenverbrauch',tip:'Solar direkt selbst genutzt. Quote: '+eigenQ+'%'});
+  if(acEinsp>0.01)baseTiles.push({ic:'📤',bg:'var(--tlb)',c:'var(--tl)',v:acEinsp.toFixed(2),u:'kWh',l:'Einspeisung',tip:'Ins Netz eingespeist. Vergütung: '+nf(acEinsp*S.einspeise).toFixed(2)+' '+cur});
+  baseTiles.forEach(function(t){tg.appendChild(makeTile(t.ic,t.bg,t.v,t.u,t.c,t.l,t.tip));});
+  // Effizienz nur wenn Daten vorhanden
+  if(acSol>0.01){var eff=effScore();tg.appendChild(makeTile('📊','var(--pub)',eff,'%','var(--pu)','Effizienz heute','Anteil Eigenenergie am Gesamtverbrauch.'));}
+  // Prognose nur wenn Wetterdaten + Verlaufsdaten vorhanden
+  if(weatherCache&&weatherCache.daily&&weatherCache.daily.sunshine_duration&&entries.length>3){
     var sunH2=Math.round(weatherCache.daily.sunshine_duration[0]/3600);
-    var avgS2=entries.length?entries.reduce(function(s,e){return s+gv(e,'solar');},0)/entries.length:0;
-    progV=nf(avgS2*Math.min(1.8,sunH2/5)).toFixed(1);progC='var(--or)';
-    progTip='Basierend auf '+sunH2+'h Sonnenstunden heute.';
+    var avgS2=entries.reduce(function(s,e){return s+gv(e,'solar');},0)/entries.length;
+    var progV=nf(avgS2*Math.min(1.8,sunH2/5)).toFixed(1);
+    tg.appendChild(makeTile('🔮','var(--orb)',progV,'kWh','var(--or)','Prognose heute','Basierend auf '+sunH2+'h Sonnenstunden.'));
   }
-  tg.appendChild(makeTile('🔮','var(--orb)',progV,'kWh',progC,'Prognose heute',progTip));
   f.appendChild(tg);
   // Ziel-Tracker
   if(S.monatsZiel>0){
@@ -1721,19 +1721,10 @@ function rSrc(){
 
   /* ── 3. Solar & Ertrag — Oranges Gradient-Banner ── */
   var solHeute=acc.date===today()?nf(acc.solar):nf((todayE&&todayE.solar&&todayE.solar.solar)||0);
-  var eigenHeute=acc.date===today()?nf(acc.eigen):0;
-  var einsHeute=acc.date===today()?nf(acc.einsp):0;
-  var eigenQuote=solHeute>0?Math.min(100,Math.round(eigenHeute/solHeute*100)):0;
-  var autarkieH=acc.date===today()&&acc.haus>0?Math.min(100,Math.round((acc.haus-Math.max(0,acc.grid))/acc.haus*100)):0;
-  var savHeute=nf(eigenHeute*S.strompreis+einsHeute*S.einspeise);
   var solBanner=div('grad-card fu4','background:linear-gradient(135deg,#FF9500,#FF6B00);padding:20px 20px 16px');
   solBanner.innerHTML='<div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">☀️ Solar & Ertrag</div>';
   var solTiles=div('','display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0');
   [['☀️','Solarertrag heute',solHeute.toFixed(2),'kWh'],
-   ['🏠','Eigenverbrauch',eigenHeute.toFixed(2),'kWh'],
-   ['📤','Einspeisung',einsHeute.toFixed(2),'kWh'],
-   ['📊','Eigenverbrauchsquote',eigenQuote,'%'],
-   ['🌿','Autarkie heute',autarkieH,'%'],
    ['💰','Gesamt gespart',allSav.toFixed(2),cur]].forEach(function(s){
     var st=div('','background:rgba(255,255,255,.18);border-radius:12px;padding:12px 10px');
     st.innerHTML='<div style="font-size:18px;margin-bottom:6px">'+s[0]+'</div>'
