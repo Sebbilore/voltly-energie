@@ -994,7 +994,7 @@ function patchHome(){
   if(!hcard||!flowEl){rHome();return;}
   var _pfx=S.foxessEnabled&&!foxessIsStale();
   var lv_soc=_pfx?foxessLive.soc:(lv&&lv.battery&&lv.battery.soc||0);
-  var chargeW=_pfx?foxessLive.pvW:(lv&&lv.battery&&lv.battery.chargeW||0);
+  var chargeW=_pfx?foxessLive.pvW:0; // Solar nur von FoxESS
   var dischargeW=_pfx?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
   var bChWp=_pfx?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
   var isSolar=chargeW>10;var isBatCharging=bChWp>10;
@@ -1673,11 +1673,15 @@ function rHome(){
   var lv_bat=lv?nf((lv.balkon&&lv.balkon.bat||0)+(src==='combined'?lv.solar&&lv.solar.bat||0:0)):0;
   var lv_grd=lv?nf((lv.balkon&&lv.balkon.grid||0)+(src==='combined'?lv.solar&&lv.solar.grid||0:0)):0;
   var lv_soc=lv?((lv.battery&&lv.battery.soc)||(lv.balkon&&lv.balkon.soc)||0):0;
-  // FoxESS überschreibt wenn aktiviert
-  if(S.foxessEnabled&&!foxessIsStale()){
-    lv_sol=nf(foxessLive.pvW/1000);
-    lv_grd=nf(foxessLive.gridW/1000);
-    lv_soc=foxessLive.soc;
+  // FoxESS ist die einzige Solarquelle — bei veraltet/offline immer 0
+  if(S.foxessEnabled){
+    if(!foxessIsStale()){
+      lv_sol=nf(foxessLive.pvW/1000);
+      lv_grd=nf(foxessLive.gridW/1000);
+      lv_soc=foxessLive.soc;
+    } else {
+      lv_sol='0';
+    }
   }
   var f=document.createDocumentFragment();
 
@@ -1746,7 +1750,7 @@ function rHome(){
   // Animated SVG energy flow card
   if(lv||(S.foxessEnabled&&!foxessIsStale())){
     var _fxf=S.foxessEnabled&&!foxessIsStale();
-    var fw=_fxf?foxessLive.pvW:(lv&&lv.battery&&lv.battery.chargeW||0);
+    var fw=_fxf?foxessLive.pvW:0; // Solar nur von FoxESS
     var dw=_fxf?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
     var bChW=_fxf?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
     var lw=_fxf?(foxessLive.gridW-foxessLive.feedinW):(lv&&lv.venus&&lv.venus.load||0);
