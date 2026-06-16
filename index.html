@@ -902,9 +902,18 @@ function patchHome(){
   hcard.style.boxShadow=onGrad?'0 4px 24px rgba(0,0,0,.2)':'';
   // Update hero label
   var nsEl=hcard.querySelector('.hc-ns');if(nsEl)nsEl.textContent=isSolar?'☀️ Solar aktiv':isBatCharging?'⚡ Akku lädt':isDischarging?'🔋 Akku entlädt':'⏸ Akku inaktiv';
-  // Update watt value
+  // Update watt value (animiert)
   var heroW=isSolar?chargeW:isBatCharging?bChWp:isDischarging?dischargeW:0;
-  var wEl=el('hero-sol');if(wEl)wEl.textContent=(heroW/1000).toFixed(2);
+  var wEl=el('hero-sol');
+  if(wEl){
+    var fromV=parseFloat(wEl.getAttribute('data-val')||'0');
+    var toV=heroW/1000;
+    wEl.setAttribute('data-val',toV);
+    if(Math.abs(toV-fromV)>0.001){
+      var st2=null;
+      (function animate(ts){if(!st2)st2=ts;var p=Math.min((ts-st2)/400,1);wEl.textContent=(fromV+(toV-fromV)*p).toFixed(2);if(p<1)requestAnimationFrame(animate);})();
+    } else {wEl.textContent=toV.toFixed(2);}
+  }
   // Update SOC ring
   var socRingEl=hcard.querySelector('svg');
   if(socRingEl){var tmp=div('');tmp.innerHTML=socRing(lv_soc,96,onGrad).outerHTML||'';var newSvg=socRing(lv_soc,96,onGrad);var oldSvg=hcard.querySelector('svg');if(oldSvg)oldSvg.parentNode.replaceChild(newSvg.querySelector?newSvg:newSvg,oldSvg);}
@@ -1755,7 +1764,7 @@ function rSrc(){
     var recChip=div('','background:rgba(255,255,255,.18);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px');
     recChip.innerHTML='<span style="font-size:18px">'+recIc+'</span><span style="font-size:13px;color:#fff;font-weight:500">'+recTxt+'</span>';
     akBanner.appendChild(recChip);
-    if(bv.temp){var tempRow=div('','margin-top:8px;font-size:12px;color:rgba(255,255,255,.6);text-align:right');tempRow.textContent='🌡 '+bv.temp+' °C';akBanner.appendChild(tempRow);}
+    var tempRow=div('','margin-top:8px;font-size:12px;color:rgba(255,255,255,.6);text-align:right');tempRow.textContent=bv.temp>0?'🌡 '+bv.temp+' °C':'🌡 Temperatur nicht verfügbar';akBanner.appendChild(tempRow);
   } else {
     akBanner.innerHTML='<div style="text-align:center;padding:16px 0"><div style="font-size:36px;margin-bottom:10px">🔋</div><div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:6px">Marstek Venus</div><div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:14px">Marstek verbinden für Akkudaten</div><button class="btn" style="background:rgba(255,255,255,.2);color:#fff" onclick="showOv(\'ml\')">Marstek verbinden</button></div>';
   }
