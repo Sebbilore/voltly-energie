@@ -803,10 +803,10 @@ function fetchMarstek(silent) {
       console.log('Venus device:',JSON.stringify(vDev));
       window._lastDeviceList=list;
 
-      var pvW=parseFloat(vDev.pv||0);           // Solar PV input (W)
-      var chargeW=parseFloat(vDev.charge||0);    // Battery charge rate (W)
-      var dischargeW=parseFloat(vDev.discharge||0); // Battery→house (W)
-      var loadW=parseFloat(vDev.load||vDev.grid||0); // Grid (W)
+      var pvW=Math.abs(parseFloat(vDev.pv||0));           // Solar PV input (W) — API may return negative
+      var chargeW=Math.abs(parseFloat(vDev.charge||0));    // Battery charge rate (W)
+      var dischargeW=Math.abs(parseFloat(vDev.discharge||0)); // Battery→house (W)
+      var loadW=parseFloat(vDev.load||vDev.grid||0); // Grid (W) — sign encodes import/export
       var soc=parseInt(vDev.soc||0);
       var temp=parseFloat(vDev.bat_temp||vDev.temperature||0);
       var cap=parseFloat(vDev.bat_cap||vDev.capacity||5000);
@@ -876,8 +876,9 @@ function patchHome(){
   // Update flow SVG only
   var fw=lv.battery&&lv.battery.chargeW||0;
   var dw=lv.battery&&lv.battery.dischargeW||0;
+  var bChW=lv.venus&&lv.venus.charge||0;
   var lw=lv.venus&&lv.venus.load||0;
-  var hausW=lv.venus&&lv.venus.haus||Math.round(fw+dw+Math.max(0,lw));
+  var hausW=lv.venus&&lv.venus.haus!=null?lv.venus.haus:Math.max(0,Math.round(fw+dw+Math.max(0,lw)));
   var netExport=lw<0;
   var W=320,H=185,R=22;
   var nSol={x:160,y:48},nNet={x:40,y:130},nAku={x:280,y:130},nHaus={x:160,y:130};
@@ -888,13 +889,13 @@ function patchHome(){
   var newSvg='<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
     +fl(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'var(--sep2)',fw>10?'active-d':'')
     +fl(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'var(--sep2)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'')
-    +fl(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,dw>10?cBat:'var(--sep2)',dw>10?'active-l':'')
+    +fl(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10||dw>10)?cBat:'var(--sep2)',(bChW>10)?'active-r':(dw>10?'active-l':''))
     +(Math.abs(lw)>10?mb(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(Math.round(lw))+'W',cNet):'')
-    +(dw>10?mb(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,dw+'W',cBat):'')
+    +((bChW>10||dw>10)?mb(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10?bChW:dw)+'W',cBat):'')
     +fn(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true)
     +fn(nNet.x,nNet.y,'⚡',Math.abs(Math.round(lw))+'W',netExport?'Einspeisung':'Netz',cNet)
     +fn(nHaus.x,nHaus.y,'🏠',hausW+'W','Haus',cHaus)
-    +fn(nAku.x,nAku.y,'🔋',lv_soc+'%',dw>10?'entlädt':'Akku',cBat)
+    +fn(nAku.x,nAku.y,'🔋',lv_soc+'%',bChW>10?'lädt':dw>10?'entlädt':'Akku',cBat)
     +'</svg>';
   flowEl.innerHTML=newSvg;
 }
@@ -1169,8 +1170,9 @@ function rHome(){
   if(lv){
     var fw=lv.battery&&lv.battery.chargeW||0;  // Solar PV (W)
     var dw=lv.battery&&lv.battery.dischargeW||0; // Battery→house (W)
+    var bChW=lv.venus&&lv.venus.charge||0; // Battery charge rate from solar/grid (W)
     var lw=lv.venus&&lv.venus.load||0;
-    var hausW=lv.venus&&lv.venus.haus||Math.round(fw+dw+Math.max(0,lw));
+    var hausW=lv.venus&&lv.venus.haus!=null?lv.venus.haus:Math.max(0,Math.round(fw+dw+Math.max(0,lw)));
     var netExport=lw<0;
     var autarkie=hausW>0?Math.min(100,Math.round((hausW-Math.max(0,lw))/hausW*100)):0;
     var bv2=lv.battery;
@@ -1215,15 +1217,15 @@ function rHome(){
       // lines between node edges
       +fline(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'var(--sep2)',fw>10?'active-d':'')
       +fline(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'var(--sep2)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'')
-      +fline(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,dw>10?cBat:'var(--sep2)',dw>10?'active-l':'')
+      +fline(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10||dw>10)?cBat:'var(--sep2)',(bChW>10)?'active-r':(dw>10?'active-l':''))
       // watt badges at midpoint (only horizontal lines to avoid overlap with node labels)
       +(Math.abs(lw)>10?midBadge(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(Math.round(lw))+'W',cNet):'')
-      +(dw>10?midBadge(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,dw+'W',cBat):'')
+      +((bChW>10||dw>10)?midBadge(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10?bChW:dw)+'W',cBat):'')
       // nodes on top
       +fnode(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true)
       +fnode(nNet.x,nNet.y,'⚡',Math.abs(Math.round(lw))+'W',netExport?'Einspeisung':'Netz',cNet)
       +fnode(nHaus.x,nHaus.y,'🏠',hausW+'W','Haus',cHaus)
-      +fnode(nAku.x,nAku.y,'🔋',lv_soc+'%',dw>10?'entlädt':'Akku',cBat)
+      +fnode(nAku.x,nAku.y,'🔋',lv_soc+'%',bChW>10?'lädt':dw>10?'entlädt':'Akku',cBat)
       +'</svg>';
     flowCard.appendChild(svgWrap);
     // Autarkie bar + prognose
