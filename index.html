@@ -660,7 +660,7 @@ function sha256(str) {
     return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
   });
 }
-function hashPwd(str) { return Promise.resolve(md5(str)); }
+function hashPwd(str) { try { return Promise.resolve((typeof md5==='function'?md5:_md5)(str)); } catch(e) { return Promise.reject(e); } }
 
 /* ── Toast / Alert / Tip ── */
 var toastT=null;
@@ -2798,7 +2798,8 @@ function renderWeather(cont,d){
     var errEl=el('ml-e'),btn=el('ml-go');
     if(!email||!pass){errEl.style.display='block';errEl.textContent='E-Mail und Passwort erforderlich';return;}
     btn.textContent='Verbinde...';btn.disabled=true;errEl.style.display='none';
-    hashPwd(pass).then(function(hash){
+    var _p;try{_p=hashPwd(pass);}catch(e){errEl.style.display='block';errEl.textContent='Hash-Fehler: '+e.message;btn.textContent='Anmelden';btn.disabled=false;return;}
+    _p.then(function(hash){
       return ftch(VOLTLI_EDGE+'/marstek',{
         method:'POST',
         headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
