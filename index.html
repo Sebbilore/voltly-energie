@@ -944,8 +944,18 @@ var _md5=function(){function a(a,b){return a+b&4294967295}function b(a,b,c,d,e,f
 function foxessSig(apiKey,ts){return _md5(apiKey+'\r\n'+ts);}
 
 var foxessLive=null,foxessLastFetch=0;
-var FOXESS_STALE_MS=30000; // Daten gelten nach 30s als veraltet
+var FOXESS_STALE_MS=30000;
 function foxessIsStale(){return !foxessLive||!foxessLastFetch||(Date.now()-foxessLastFetch>FOXESS_STALE_MS);}
+// Stuck-Value-Detection: wenn pvPower N Fetches identisch bleibt → Offline-Cache
+var foxessPvHistory=[];
+var FOXESS_STUCK_COUNT=6; // ~18s bei 3s Intervall
+function foxessPvIsStuck(v){
+  foxessPvHistory.push(v);
+  if(foxessPvHistory.length>FOXESS_STUCK_COUNT)foxessPvHistory.shift();
+  if(v===0)return false; // 0 ist kein stuck-Wert
+  if(foxessPvHistory.length<FOXESS_STUCK_COUNT)return false;
+  return foxessPvHistory.every(function(x){return x===v;});
+}
 var foxessDeviceLastTime=0,foxessDeviceChecked=0;
 function fetchFoxESSStatus(cb){
   if(!S.foxessApiKey||!S.foxessDeviceSn){if(cb)cb();return;}
@@ -970,13 +980,7 @@ function fetchFoxESSStatus(cb){
 }
 function fetchFoxESS(silent){
   if(!S.foxessApiKey||!S.foxessDeviceSn)return;
-  // Status immer zuerst holen (oder wenn >60s alt), dann Daten laden
-  var statusAge=Date.now()-foxessDeviceChecked;
-  if(statusAge>60000||foxessDeviceChecked===0){
-    fetchFoxESSStatus(function(){doFetchFoxESS(silent);});
-  } else {
-    doFetchFoxESS(silent);
-  }
+  doFetchFoxESS(silent);
 }
 function doFetchFoxESS(silent){
   var ts=String(Date.now());
@@ -991,9 +995,8 @@ function doFetchFoxESS(silent){
     var res=Array.isArray(d.result)?d.result:(d.result.datas||[]);
     function gfv(key){var f=res.find(function(x){return x.variable===key;});return f?parseFloat(f.value)||0:0;}
     var rawPv=Math.round(gfv('pvPower'));
-    // Wechselrichter-Zeitstempel: wenn lastTime >10 Min alt → Offline-Cache → Solar=0
-    var deviceDataFresh=(foxessDeviceChecked>0)&&(foxessDeviceLastTime>0)&&(Date.now()-foxessDeviceLastTime<600000);
-    if(rawPv>0&&!deviceDataFresh){rawPv=0;}
+    // Stuck-Value: wenn pvPower N Fetches identisch bleibt → FoxESS-Offline-Cache → 0
+    if(foxessPvIsStuck(rawPv)){rawPv=0;}
     foxessLive={
       pvW:rawPv,
       feedinW:Math.round(gfv('feedinPower')),
