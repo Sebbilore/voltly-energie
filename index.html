@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-title" content="Voltli"/>
 <meta name="theme-color" content="#F2F2F7"/>
 <title>Voltli</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23FF9500'/><text y='.9em' font-size='72' x='50%' text-anchor='middle'>⚡</text></svg>"/>
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23FF9500'/><text y='.9em' font-size='72' x='50%' text-anchor='middle'>⚡</text></svg>"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
 <!-- Firebase compat SDK -->
@@ -2017,7 +2019,7 @@ function rSet(){
 
   addSH(f,'Demo & Daten','fu6');var dCard=div('card fu6');var dRow=div('row','cursor:default');dRow.innerHTML='<div class="ric" style="background:var(--orb)">🎭</div><div class="rb"><div class="rl">Demo-Modus</div><div class="rs">Live-simulierte Beispieldaten</div></div>';var dL=document.createElement('label');dL.className='tog';var dI=document.createElement('input');dI.type='checkbox';if(demo)dI.checked=true;dI.onchange=function(){demo=this.checked;if(demo)startDemo();else stopDemo();if(curTab==='home')rHome();};dL.appendChild(dI);var dT=div('tog-tr');dL.appendChild(dT);var dH=div('tog-th');dL.appendChild(dH);dRow.appendChild(dL);dCard.appendChild(dRow);dCard.appendChild(sepEl());dCard.appendChild(makeRow('✏️','var(--pub)','Manuell eintragen',null,null,null,true,openMan));dCard.appendChild(sepEl());dCard.appendChild(makeRow('📊','var(--blb)','Als CSV exportieren','Excel / Steuererklärung',null,null,true,exportCSV));dCard.appendChild(sepEl());dCard.appendChild(makeRow('🖨','var(--grb)','Als PDF exportieren','Monatsbericht drucken',null,null,true,exportPDF));dCard.appendChild(sepEl());var delR=makeRow('🗑','var(--rdb)','Alle Daten löschen',null,null,'var(--rd)',false,function(){showAlert('Verlauf löschen','Alle lokalen Daten löschen?',[{label:'Abbrechen',bold:true,fn:closeAlert},{label:'Löschen',danger:true,fn:function(){E=[];svE();closeAlert();toast('Gelöscht');if(curTab==='home')rHome();}}]);});delR.querySelector('.rl').style.color='var(--rd)';dCard.appendChild(delR);f.appendChild(dCard);
 
-  var foot=div('','text-align:center;padding:20px 0 8px;color:var(--t4);font-size:12px;line-height:1.9');foot.textContent='⚡ Voltli • iPhone: Safari → Teilen → Zum Home-Bildschirm • Android: Chrome → App installieren';f.appendChild(foot);
+  var foot=div('','text-align:center;padding:20px 0 8px;color:var(--t4);font-size:12px');foot.textContent='⚡ Voltli v1.0';f.appendChild(foot);
   var stb=el('stb');stb.innerHTML='';stb.appendChild(f);
 }
 
