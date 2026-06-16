@@ -692,7 +692,7 @@ function doSignIn() {
     // Restore from Firestore in background after app started
     Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
       var cloudS=results[0], cloudAcc=results[1], rows=results[2];
-      if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); }
+      if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch(); }
       if(cloudAcc && cloudAcc.date===today()){ acc=cloudAcc; }
       var localE=ldE();
       if(rows && rows.length >= localE.length){ E=rows; svE(); }
@@ -848,7 +848,7 @@ function schedFetch(){
   clearInterval(fi);
   if(!S.marstekToken)return;
   fetchMarstek(true);
-  fi=setInterval(function(){fetchMarstek(true);},(S.fetchSec||15)*1000);
+  fi=setInterval(function(){fetchMarstek(true);},(S.fetchSec||5)*1000);
 }
 function fetchAll(){var ic=el('ri');if(ic)ic.className='spin';fetchMarstek(false);setTimeout(function(){var ic=el('ri');if(ic)ic.className='';},1500);}
 
@@ -939,7 +939,7 @@ function startGuestMode(pin){
     });
   };
   pollGuest();
-  fi=setInterval(pollGuest,(S.fetchSec||15)*1000);
+  fi=setInterval(pollGuest,(S.fetchSec||5)*1000);
 }
 
 function openShareSettings(){
@@ -1802,7 +1802,7 @@ function renderWeather(cont,d){
         bootApp(false);
         Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
           var cloudS=results[0], cloudAcc=results[1], rows=results[2];
-          if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); }
+          if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch(); }
           if(cloudAcc && cloudAcc.date===today()){ acc=cloudAcc; }
           var localE=ldE();
           if(rows && rows.length >= localE.length){ E=rows; svE(); }
