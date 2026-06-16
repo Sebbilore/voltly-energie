@@ -900,7 +900,7 @@ function fetchMarstek(silent) {
       live={
         battery:{soc:soc,cap:cap,chargeW:pvW,dischargeW:dischargeW,
                  charge:nf(acc.solar),discharge:nf(acc.bat),temp:temp},
-        venus:{pv:pvW,charge:chargeW,discharge:dischargeW,load:loadW,haus:hausW,profit:profit,soc:soc},
+        venus:{pv:pvW,charge:0,discharge:dischargeW,load:loadW,haus:0,profit:profit,soc:soc},
         source:'cloud'
       };
       persist({solar:nf(acc.solar),bat:nf(acc.bat),grid:nf(acc.grid),soc:soc},{},{soc:soc,cap:cap,charge:nf(acc.solar),discharge:nf(acc.bat),temp:temp},'cloud');
