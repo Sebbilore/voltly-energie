@@ -822,8 +822,7 @@ function fetchMarstek(silent) {
       // CT002 (HME-4) — grid sensor, use when configured via S.ct002Id
       var ctDev=list.find(function(x){return (x.devid||x.mac||x.sn)===S.ct002Id;})||
                 (S.ct002Id?{}:list.find(function(x){return x.type==='HME-4';})||{});
-      console.log('Venus device:',JSON.stringify(vDev));
-      if(Object.keys(ctDev).length)console.log('CT002 device:',JSON.stringify(ctDev));
+
       window._lastDeviceList=list;
 
       var pvW=Math.abs(parseFloat(vDev.pv||0));
@@ -834,7 +833,6 @@ function fetchMarstek(silent) {
       var ctPhaseSum=ctPa+ctPb+ctPc;
       var ctLoadRaw=ctPhaseSum!==0?ctPhaseSum:(parseFloat(ctDev.load||0)||parseFloat(ctDev.grid||0));
       var loadW=ctLoadRaw!==0?ctLoadRaw:parseFloat(vDev.load||vDev.grid||0);
-      console.log('CT002 phases: pa='+ctPa+' pb='+ctPb+' pc='+ctPc+' sum='+ctPhaseSum+' loadW='+loadW);
       var soc=parseInt(vDev.soc||0);
       var temp=parseFloat(vDev.bat_temp||vDev.temperature||0);
       var cap=parseFloat(vDev.bat_cap||vDev.capacity||5000);
