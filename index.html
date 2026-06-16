@@ -958,6 +958,18 @@ function fetchFoxESS(silent){
     if(!d.result)return;
     var res=d.result;
     function gfv(key){var f=res.find(function(x){return x.variable===key;});return f?parseFloat(f.value)||0:0;}
+    // Prüfen ob Gerätedaten aktuell sind — FoxESS liefert auch Offline-Cache-Werte
+    // Jeder Datenpunkt hat ein "time"-Feld: wann der Wechselrichter es zuletzt gemeldet hat
+    var pvEntry=res.find(function(x){return x.variable==='pvPower';});
+    if(pvEntry&&pvEntry.time){
+      var devTime=new Date(pvEntry.time).getTime();
+      if(isNaN(devTime)||Date.now()-devTime>600000){
+        // Wechselrichter hat seit >10 Min nicht gemeldet → Offline
+        foxessLive=null;foxessLastFetch=0;
+        if(curTab==='home')patchHome();
+        return;
+      }
+    }
     foxessLive={
       pvW:Math.round(gfv('pvPower')),
       feedinW:Math.round(gfv('feedinPower')),
