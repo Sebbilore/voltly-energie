@@ -799,16 +799,20 @@ function fetchMarstek(silent) {
       var list=Array.isArray(data.data)?data.data:(data.data&&Array.isArray(data.data.list)?data.data.list:[]);
       if(!list.length){if(!silent)toast('Keine Geräte gefunden');return;}
       var ids=Array.isArray(S.marstekDeviceIds)&&S.marstekDeviceIds.length?S.marstekDeviceIds:(S.marstekDeviceId?[S.marstekDeviceId]:[]);
-      // Venus E 3.0 (VNSE3-0) is the only device with real data — skip HME-4/CT002 (is_support:0)
       var allDev=ids.length?list.filter(function(x){return ids.indexOf(x.devid||x.mac||x.sn)>=0;}):list;
       var vDev=allDev.find(function(x){return x.type!=='HME-4';})||allDev[0]||list[0]||{};
+      // CT002 (HME-4) — used for grid measurement via ct.load even if is_support:0
+      var ctDev=list.find(function(x){return x.type==='HME-4';})||{};
       console.log('Venus device:',JSON.stringify(vDev));
+      console.log('CT002 device:',JSON.stringify(ctDev));
       window._lastDeviceList=list;
 
       var pvW=Math.abs(parseFloat(vDev.pv||0));           // Solar PV input (W) — API may return negative
       var chargeW=Math.abs(parseFloat(vDev.charge||0));    // Battery charge rate (W)
       var dischargeW=Math.abs(parseFloat(vDev.discharge||0)); // Battery→house (W)
-      var loadW=parseFloat(vDev.load||vDev.grid||0); // Grid (W) — sign encodes import/export
+      // Grid: prefer CT002 load field, fallback to Venus load/grid
+      var ctLoad=parseFloat(ctDev.load||ctDev.grid||0);
+      var loadW=ctLoad!==0?ctLoad:parseFloat(vDev.load||vDev.grid||0); // Grid (W) — sign encodes import/export
       var soc=parseInt(vDev.soc||0);
       var temp=parseFloat(vDev.bat_temp||vDev.temperature||0);
       var cap=parseFloat(vDev.bat_cap||vDev.capacity||5000);
@@ -899,7 +903,7 @@ function patchHome(){
     +(Math.abs(lw)>10?mb(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(Math.round(lw))+'W',cNet):'')
     +((bChW>10||dw>10)?mb(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10?bChW:dw)+'W',cBat):'')
     +fn(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true)
-    +fn(nNet.x,nNet.y,'⚡',Math.abs(Math.round(lw))+'W',netExport?'Einspeisung':'Netz',cNet)
+    +fn(nNet.x,nNet.y,'⚡',Math.abs(lw)>10?Math.abs(Math.round(lw))+'W':'—',netExport?'Einspeisung':'Netz','#8E8E93')
     +fn(nHaus.x,nHaus.y,'🏠',hausW+'W','Haus',cHaus)
     +fn(nAku.x,nAku.y,'🔋',lv_soc+'%',bChW>10?'lädt':dw>10?'entlädt':'Akku',cBat)
     +'</svg>';
