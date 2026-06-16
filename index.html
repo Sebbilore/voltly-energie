@@ -1792,7 +1792,7 @@ function rHome(){
     var dw=_fxf?foxessLive.batDischargeW:(lv?lv.battery&&lv.battery.dischargeW||0:0);
     var bChW=_fxf?foxessLive.batChargeW:0;
     var lw=_fxf?(foxessLive.gridW-foxessLive.feedinW):(lv?lv.venus&&lv.venus.load||0:0);
-    var hausW=_fxf?Math.max(0,foxessLive.pvW+dw-bChW+Math.max(0,lw)):0;
+    var hausW=_fxf?Math.max(0,foxessLive.pvW+dw-bChW+Math.max(0,lw)):Math.max(0,Math.round(dw+Math.max(0,lw)));
     var netExport=_fxf?(foxessLive.feedinW>foxessLive.gridW):(lw<0);
     var autarkie=hausW>0?Math.min(100,Math.round((hausW-Math.max(0,lw))/hausW*100)):0;
     var bv2=lv.battery;
