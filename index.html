@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-<meta name="apple-mobile-web-app-title" content="Voltli"/>
+<meta name="apple-mobile-web-app-title" content="Voltly"/>
 <meta name="theme-color" content="#F2F2F7"/>
-<title>Voltli</title>
+<title>Voltly</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -385,7 +385,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       </div>
       <p id="ml-e" style="display:none;font-size:13px;margin-bottom:12px;padding:10px;border-radius:var(--rs);background:var(--rdb);color:var(--rd)"></p>
       <button class="btn b-or" id="ml-go" style="width:100%;margin-bottom:12px">Anmelden</button>
-      <div class="info info-bl">Verbindung über sicheren Voltli-Server zur Marstek-Cloud.</div>
+      <div class="info info-bl">Verbindung über sicheren Voltly-Server zur Marstek-Cloud.</div>
     </div>
   </div>
 </div>
@@ -543,7 +543,9 @@ var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceN
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
   strompreis:0.32, einspeise:0.082, currency:'EUR',
   autoFetch:true, fetchSec:3, activeSrc:'combined', chartPeriod:'week', darkMode:'auto',
-  notifications:false, morgenBriefing:false, anschaffung:0, monatsZiel:0 };
+  notifications:false, morgenBriefing:false, anschaffung:0, monatsZiel:0,
+  akkuKapazitaet:2.56, co2Faktor:350, socAlarmLow:20, socAlarmHigh:90,
+  kompaktAnsicht:false, wetterPLZ:'', wetterLat:null, wetterLon:null };
 
 /* ── Demo data ── */
 var DEMO = (function() {
@@ -1202,21 +1204,22 @@ function exportCSV(){
   ae().forEach(function(e){rows.push([e.date,nf(gv(e,'solar')),nf(gv(e,'bat')),nf(gv(e,'grid')),nf(gv(e,'save')),(e.battery&&e.battery.soc)||'']);});
   var csv=rows.map(function(r){return r.join(';');}).join('\n');
   var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='voltli-'+today()+'.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='voltly-'+today()+'.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);
   toast('CSV exportiert ✓');
 }
 
 /* ── Export PDF ── */
 function exportPDF(){
   var cur=getCur();var totalSol=0,totalSav=0,totalCO2=0;
-  ae().forEach(function(e){totalSol+=gv(e,'solar');totalSav+=gv(e,'save');totalCO2+=gv(e,'solar')*0.401;});
+  var co2F=(S.co2Faktor||350)/1000;
+  ae().forEach(function(e){totalSol+=gv(e,'solar');totalSav+=gv(e,'save');totalCO2+=gv(e,'solar')*co2F;});
   var rows=ae().slice(0,90).map(function(e){return '<tr><td>'+e.date+'</td><td>'+nf(gv(e,'solar'))+'</td><td>'+nf(gv(e,'bat'))+'</td><td>'+nf(gv(e,'grid'))+'</td><td>'+nf(gv(e,'save'))+' '+cur+'</td></tr>';}).join('');
   var w=window.open('','_blank','width=860,height=700');
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Voltli Bericht</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:28px;color:#111;max-width:800px;margin:0 auto}h1{font-size:22px;margin-bottom:4px}p.sub{color:#888;font-size:12px;margin-bottom:18px}.sum{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}.sb{background:#f7f7f7;border-radius:8px;padding:12px 18px;min-width:150px}.sv{font-size:22px;font-weight:700}.sl{font-size:11px;color:#888;margin-top:2px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #e0e0e0;padding:7px 10px}th{background:#f9f9f9;font-weight:600}.np{display:none}@media print{.np{display:none}}</style></head><body>'
-    +'<h1>⚡ Voltli — Energiebericht</h1><p class="sub">Exportiert '+new Date().toLocaleDateString('de-DE')+' · '+(currentUser&&currentUser.email||'')+'</p>'
+    +'<h1>⚡ Voltly — Energiebericht</h1><p class="sub">Exportiert '+new Date().toLocaleDateString('de-DE')+' · '+(currentUser&&currentUser.email||'')+'</p>'
     +'<div class="sum"><div class="sb"><div class="sv">'+totalSol.toFixed(1)+' kWh</div><div class="sl">Solar gesamt</div></div><div class="sb"><div class="sv">'+totalSav.toFixed(2)+' '+cur+'</div><div class="sl">Gesamt gespart</div></div><div class="sb"><div class="sv">'+totalCO2.toFixed(1)+' kg</div><div class="sl">CO₂ gespart</div></div></div>'
     +'<table><tr><th>Datum</th><th>Solar kWh</th><th>Akku kWh</th><th>Netz kWh</th><th>Ersparnis</th></tr>'+rows+'</table>'
-    +'<p style="margin-top:14px;font-size:10px;color:#bbb">Erstellt mit Voltli</p>'
+    +'<p style="margin-top:14px;font-size:10px;color:#bbb">Erstellt mit Voltly</p>'
     +'<button class="np" onclick="window.print()" style="margin-top:14px;padding:9px 20px;background:#FF9500;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">🖨 Drucken / Als PDF</button>'
     +'</body></html>');
   w.document.close();
@@ -1293,7 +1296,7 @@ function checkMorgenBriefing(){
     var avgS=E.length?E.reduce(function(s,e){return s+gv(e,'solar');},0)/E.length:0;
     msg+='Heute ~'+sunH+'h Sonne. Prognose: ~'+nf(avgS*Math.min(1.8,sunH/5)).toFixed(1)+' kWh Solar.';
   } else { msg+='Schönen Tag! ☀️'; }
-  sendNotif('☀️ Voltli Morgen-Briefing',msg);
+  sendNotif('☀️ Voltly Morgen-Briefing',msg);
 }
 
 /* ── Rendite berechnen ── */
@@ -1359,10 +1362,11 @@ function fetchCT002Local(silent){
 /* ── Notifications ── */
 function checkNotifications(soc,pvW){
   if(!S.notifications)return;
-  if(soc>=98&&!notifSent.full){notifSent.full=true;sendNotif('🔋 Akku voll!','Ladestand '+soc+'% — jetzt Verbraucher einschalten');}
-  else if(soc<95)notifSent.full=false;
-  if(soc<=15&&!notifSent.low){notifSent.low=true;sendNotif('⚠️ Akku fast leer','Noch '+soc+'% — Verbraucher reduzieren');}
-  else if(soc>20)notifSent.low=false;
+  var hi=S.socAlarmHigh||90, lo=S.socAlarmLow||20;
+  if(soc>=hi&&!notifSent.full){notifSent.full=true;sendNotif('🔋 Akku voll!','Ladestand '+soc+'% — jetzt Verbraucher einschalten');}
+  else if(soc<hi-5)notifSent.full=false;
+  if(soc<=lo&&!notifSent.low){notifSent.low=true;sendNotif('⚠️ Akku fast leer','Noch '+soc+'% — Verbraucher reduzieren');}
+  else if(soc>lo+5)notifSent.low=false;
 }
 function sendNotif(title,body){
   if(!('Notification' in window))return;
@@ -1591,7 +1595,7 @@ function rHome(){
   var acEigen=acc.date===today()?nf(acc.eigen):0;
   var eigenQ=acSol>0?Math.min(100,Math.round(acEigen/acSol*100)):0;
   var autarkieQ=acHaus>0?Math.min(100,Math.round(acEigen/acHaus*100)):0;
-  var co2Heute=nf(acSol*0.4);
+  var co2Heute=nf(acSol*(S.co2Faktor||350)/1000);
   var baseTiles=[
     {ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:acSol.toFixed(2),u:'kWh',l:'Solarertrag',tip:'Gesamte Solarproduktion seit Mitternacht.'},
     {ic:'⚡',bg:'var(--rdb)',c:'var(--rd)',v:acGrd.toFixed(2),u:'kWh',l:'Netzbezug',tip:'Aus dem Netz bezogene Energie heute.'},
@@ -1796,7 +1800,7 @@ function rSrc(){
   var hausHeute=acc.date===today()?nf(acc.haus):0;
   var eigenQuote=solHeute>0?Math.min(100,Math.round(eigenHeute/solHeute*100)):0;
   var autarkieHeute=hausHeute>0?Math.min(100,Math.round(eigenHeute/hausHeute*100)):0;
-  var co2Banner=nf(solHeute*0.4);
+  var co2Banner=nf(solHeute*(S.co2Faktor||350)/1000);
   var solBanner=div('grad-card fu4','background:linear-gradient(135deg,#FF9500,#FF6B00);padding:20px 20px 16px');
   solBanner.innerHTML='<div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">☀️ Solar & Ertrag</div>';
   var solTiles=div('','display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0');
@@ -2109,7 +2113,92 @@ function rSet(){
 
   addSH(f,'Demo & Daten','fu6');var dCard=div('card fu6');var dRow=div('row','cursor:default');dRow.innerHTML='<div class="ric" style="background:var(--orb)">🎭</div><div class="rb"><div class="rl">Demo-Modus</div><div class="rs">Live-simulierte Beispieldaten</div></div>';var dL=document.createElement('label');dL.className='tog';var dI=document.createElement('input');dI.type='checkbox';if(demo)dI.checked=true;dI.onchange=function(){demo=this.checked;if(demo)startDemo();else stopDemo();if(curTab==='home')rHome();};dL.appendChild(dI);var dT=div('tog-tr');dL.appendChild(dT);var dH=div('tog-th');dL.appendChild(dH);dRow.appendChild(dL);dCard.appendChild(dRow);dCard.appendChild(sepEl());dCard.appendChild(makeRow('✏️','var(--pub)','Manuell eintragen',null,null,null,true,openMan));dCard.appendChild(sepEl());dCard.appendChild(makeRow('📊','var(--blb)','Als CSV exportieren','Excel / Steuererklärung',null,null,true,exportCSV));dCard.appendChild(sepEl());dCard.appendChild(makeRow('🖨','var(--grb)','Als PDF exportieren','Monatsbericht drucken',null,null,true,exportPDF));dCard.appendChild(sepEl());var delR=makeRow('🗑','var(--rdb)','Alle Daten löschen',null,null,'var(--rd)',false,function(){showAlert('Verlauf löschen','Alle lokalen Daten löschen?',[{label:'Abbrechen',bold:true,fn:closeAlert},{label:'Löschen',danger:true,fn:function(){E=[];svE();closeAlert();toast('Gelöscht');if(curTab==='home')rHome();}}]);});delR.querySelector('.rl').style.color='var(--rd)';dCard.appendChild(delR);f.appendChild(dCard);
 
-  var foot=div('','text-align:center;padding:20px 0 8px;color:var(--t4);font-size:12px');foot.textContent='⚡ Voltli · '+APP_VERSION;f.appendChild(foot);
+  /* ── Akku & Anlage ── */
+  addSH(f,'Akku & Anlage','fu7');
+  var anCard=div('card fu7');
+  var anRows=[
+    {label:'Akkukapazität',key:'akkuKapazitaet',unit:'kWh',placeholder:'2.56'},
+    {label:'CO₂-Faktor',key:'co2Faktor',unit:'g/kWh',placeholder:'350'},
+    {label:'Alarm: Akku leer ab',key:'socAlarmLow',unit:'%',placeholder:'20'},
+    {label:'Alarm: Akku voll ab',key:'socAlarmHigh',unit:'%',placeholder:'90'}
+  ];
+  anRows.forEach(function(z,i){
+    if(i>0)anCard.appendChild(sepEl());
+    var r=div('fr');
+    var lbl=document.createElement('label');lbl.textContent=z.label;
+    var inp=document.createElement('input');inp.type='number';inp.value=S[z.key]!=null?S[z.key]:'';inp.placeholder=z.placeholder;
+    inp.style.textAlign='right';
+    inp.onchange=function(){S[z.key]=parseFloat(this.value)||0;svS();toast('Gespeichert ✓');};
+    var u=div('unit');u.textContent=z.unit;
+    r.appendChild(lbl);r.appendChild(inp);r.appendChild(u);anCard.appendChild(r);
+  });
+  f.appendChild(anCard);
+
+  /* ── Ansicht ── */
+  addSH(f,'Ansicht','fu8');
+  var avCard=div('card fu8');
+  var avRow=div('row','cursor:default');
+  avRow.innerHTML='<div class="ric" style="background:var(--blb)">⊞</div><div class="rb"><div class="rl">Kompakt-Ansicht</div><div class="rs">Weniger Kacheln, größere Werte</div></div>';
+  var avL=document.createElement('label');avL.className='tog';var avI=document.createElement('input');avI.type='checkbox';avI.checked=!!S.kompaktAnsicht;
+  avI.onchange=function(){S.kompaktAnsicht=this.checked;svS();if(curTab==='home')rHome();toast(this.checked?'Kompakt-Ansicht aktiv':'Normale Ansicht');};
+  avL.appendChild(avI);avL.appendChild(div('tog-tr'));avL.appendChild(div('tog-th'));avRow.appendChild(avL);avCard.appendChild(avRow);
+  avCard.appendChild(sepEl());
+  var cpRow=div('row','cursor:default');
+  cpRow.innerHTML='<div class="ric" style="background:var(--pub)">📅</div><div class="rb"><div class="rl">Standard-Zeitraum Charts</div></div>';
+  var cpSel=document.createElement('select');cpSel.style.cssText='background:var(--bg2);color:var(--t);border:1px solid var(--sep);border-radius:8px;padding:6px 10px;font-size:14px;';
+  [['day','Tag'],['week','Woche'],['month','Monat'],['year','Jahr']].forEach(function(v){var o=document.createElement('option');o.value=v[0];o.textContent=v[1];if((S.chartPeriod||'week')===v[0])o.selected=true;cpSel.appendChild(o);});
+  cpSel.onchange=function(){S.chartPeriod=this.value;svS();toast('Gespeichert ✓');};
+  cpRow.appendChild(cpSel);avCard.appendChild(cpRow);
+  f.appendChild(avCard);
+
+  /* ── Wetter-Standort ── */
+  addSH(f,'Wetter-Standort','fu9');
+  var wlCard=div('card fu9');
+  var plzRow=div('fr');
+  var plzLbl=document.createElement('label');plzLbl.textContent='Postleitzahl';
+  var plzInp=document.createElement('input');plzInp.type='text';plzInp.value=S.wetterPLZ||'';plzInp.placeholder='z.B. 53721';plzInp.inputMode='numeric';
+  plzInp.style.textAlign='right';
+  plzInp.onchange=function(){
+    var plz=this.value.trim();S.wetterPLZ=plz;S.wetterLat=null;S.wetterLon=null;
+    if(plz.length>=4){
+      fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(plz)+'&count=1&language=de&format=json')
+        .then(function(r){return r.json();}).then(function(d){
+          if(d.results&&d.results[0]){S.wetterLat=d.results[0].latitude;S.wetterLon=d.results[0].longitude;svS();toast('Standort: '+d.results[0].name+' ✓');weatherCache=null;}
+          else{toast('PLZ nicht gefunden');}
+        }).catch(function(){toast('Geocoding fehlgeschlagen');});
+    } else {svS();}
+  };
+  plzRow.appendChild(plzLbl);plzRow.appendChild(plzInp);wlCard.appendChild(plzRow);
+  wlCard.appendChild(sepEl());
+  var gpsRow2=makeRow('📍','var(--grb)','GPS-Standort verwenden','Automatisch orten',null,null,true,function(){
+    navigator.geolocation.getCurrentPosition(function(pos){
+      S.wetterLat=pos.coords.latitude;S.wetterLon=pos.coords.longitude;S.wetterPLZ='GPS';svS();weatherCache=null;rSet();toast('Standort ermittelt ✓');
+    },function(){toast('Standort nicht verfügbar');});
+  });
+  wlCard.appendChild(gpsRow2);
+  if(S.wetterLat){
+    wlCard.appendChild(sepEl());
+    var coordRow=div('row','cursor:default');
+    coordRow.innerHTML='<div class="ric" style="background:var(--f2)">🌍</div><div class="rb"><div class="rl">Koordinaten</div><div class="rs">'+S.wetterLat.toFixed(4)+', '+S.wetterLon.toFixed(4)+'</div></div>';
+    wlCard.appendChild(coordRow);
+  }
+  f.appendChild(wlCard);
+
+  /* ── Über Voltly ── */
+  addSH(f,'Über Voltly','fu10');
+  var aboutCard=div('card fu10');
+  aboutCard.appendChild(makeRow('👤','var(--blb)','Erstellt von','Sebastian',null,'var(--bl)',false,null));
+  aboutCard.appendChild(sepEl());
+  aboutCard.appendChild(makeRow('⚡','var(--orb)','Version',APP_VERSION,null,'var(--or)',false,null));
+  aboutCard.appendChild(sepEl());
+  aboutCard.appendChild(makeRow('🔋','var(--grb)','Kompatibel mit','Marstek Venus B2500 + CT002',null,null,false,null));
+  aboutCard.appendChild(sepEl());
+  aboutCard.appendChild(makeRow('☁️','var(--pub)','Backend','Firebase · Supabase Edge',null,null,false,null));
+  f.appendChild(aboutCard);
+
+  var foot=div('','text-align:center;padding:16px 0 8px;color:var(--t4);font-size:11px;line-height:1.8');
+  foot.innerHTML='⚡ Voltly · '+APP_VERSION+'<br><span style="font-size:10px">Made with ♥ by Sebastian</span>';
+  f.appendChild(foot);
   var stb=el('stb');stb.innerHTML='';stb.appendChild(f);
 }
 
@@ -2148,18 +2237,22 @@ function rWthr(){
   // Use cached data if fresh (<10min)
   if(weatherCache&&Date.now()-weatherFetchTs<600000){renderWeather(cont,weatherCache);return;}
 
+  // Gespeicherten Standort aus Einstellungen bevorzugen
+  if(S.wetterLat){
+    fetchWeather(S.wetterLat,S.wetterLon,function(d){weatherCache=d;weatherFetchTs=Date.now();renderWeather(cont,d);});
+    return;
+  }
   cont.innerHTML='<div style="text-align:center;padding:60px 0;color:var(--t3)"><div style="font-size:40px;margin-bottom:12px">📡</div><div>Standort wird ermittelt…</div></div>';
   if(!navigator.geolocation){cont.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)">Standort nicht verfügbar</div>';return;}
   navigator.geolocation.getCurrentPosition(function(pos){
     var lat=pos.coords.latitude.toFixed(4),lon=pos.coords.longitude.toFixed(4);
-    S.weatherLat=lat;S.weatherLon=lon;svS();
+    S.wetterLat=parseFloat(lat);S.wetterLon=parseFloat(lon);svS();
     fetchWeather(lat,lon,function(d){weatherCache=d;weatherFetchTs=Date.now();renderWeather(cont,d);});
   },function(){
-    // Try saved location
     if(S.weatherLat){
       fetchWeather(S.weatherLat,S.weatherLon,function(d){weatherCache=d;weatherFetchTs=Date.now();renderWeather(cont,d);});
     } else {
-      cont.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)"><div style="font-size:36px;margin-bottom:10px">📍</div><p>Standort-Zugriff verweigert.<br/>Bitte Standort in den Browser-Einstellungen freigeben.</p></div>';
+      cont.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)"><div style="font-size:36px;margin-bottom:10px">📍</div><p>Standort-Zugriff verweigert.<br/>PLZ in Einstellungen eintragen.</p></div>';
     }
   },{timeout:8000});
 }
