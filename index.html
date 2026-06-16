@@ -890,11 +890,9 @@ function fetchMarstek(silent) {
       var temp=parseFloat(vDev.bat_temp||vDev.temperature||0);
       var cap=parseFloat(vDev.bat_cap||vDev.capacity||5000);
       var profit=parseFloat(vDev.profit||0);
-      // Marstek: nur echte Messwerte — kein hausW, kein Eigenverbrauch berechnen
-      // FoxESS ist alleinige Quelle für Solar, Haus und Eigenverbrauch
-      if(!S.foxessEnabled||foxessIsStale()){
-        updateAcc(0,dischargeW,loadW,0);
-      }
+      // Marstek läuft immer — echte Messwerte: Akku-Entladung + Netzbezug
+      // Solar=0 (Marstek kennt kein Solar), hausW=0 (nicht berechnen)
+      updateAcc(0,dischargeW,loadW,0);
       checkNotifications(soc,pvW);
       trackUptime(true);checkAnomalie();checkMorgenBriefing();checkTagesrekord();
       var hs={ts:Date.now(),chargeW:pvW,dischargeW:dischargeW,loadW:loadW,soc:soc};
