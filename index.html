@@ -605,10 +605,17 @@ function ldS() { try { return Object.assign({},DEF,JSON.parse(localStorage.getIt
 function svS() { localStorage.setItem(SK, JSON.stringify(S)); CLOUD.saveSettings(S); }
 var _accSaveT=0;
 function svAcc() {
+  localStorage.setItem('vt3acc', JSON.stringify(acc));
   var now=Date.now();
-  if(now-_accSaveT<60000) return; // max once per minute
+  if(now-_accSaveT<60000) return; // max once per minute to Firebase
   _accSaveT=now;
   CLOUD.saveAcc(acc);
+}
+function ldAccLocal() {
+  try {
+    var a=JSON.parse(localStorage.getItem('vt3acc')||'{}');
+    if(a && a.date===today()) acc=Object.assign({eigen:0,haus:0,solar:0,bat:0,grid:0,t:0},a);
+  } catch(e){}
 }
 function applyTheme(mode){
   var root=document.documentElement;
@@ -743,7 +750,7 @@ function doSignUp() {
 
 /* ── Boot App ── */
 function bootApp(d) {
-  demo=d; S=ldS(); E=ldE();
+  demo=d; S=ldS(); E=ldE(); ldAccLocal();
   applyTheme(S.darkMode||'auto');
   el('ls').style.display='none';
   el('app').style.display='block';
