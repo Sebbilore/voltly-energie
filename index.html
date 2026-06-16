@@ -520,6 +520,8 @@ function updateAcc(chargeW,dischargeW,loadW){
   var d=today(),now=Date.now();
   if(acc.date!==d){acc={date:d,solar:0,bat:0,grid:0,t:now};return;}
   if(acc.t>0){var h=(now-acc.t)/3600000;acc.solar+=chargeW*h/1000;acc.bat+=dischargeW*h/1000;acc.grid+=Math.max(0,loadW)*h/1000;}
+  // Sanity check — prevent corrupt negative values from stale data
+  if(acc.solar<0)acc.solar=0;if(acc.bat<0)acc.bat=0;if(acc.grid<0)acc.grid=0;
   acc.t=now;
   svAcc();
 }
