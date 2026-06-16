@@ -1114,14 +1114,26 @@ function mkCH(id,type,labels,datasets,extra){
     plugins:{
       legend:{display:multiDs,position:'top',labels:{color:'#8E8E93',boxWidth:10,boxHeight:10,padding:12,font:{size:11}}},
       tooltip:{backgroundColor:'rgba(255,255,255,.98)',borderColor:'rgba(0,0,0,.08)',borderWidth:1,titleColor:'#8E8E93',bodyColor:'#1C1C1E',cornerRadius:12,padding:12,displayColors:true,boxWidth:8,boxHeight:8,boxPadding:4},
-      zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}
+      zoom:{zoom:{wheel:{enabled:false},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}
     },
     scales:{x:{grid:{display:false},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}}},
     animation:{duration:460,easing:'easeInOutQuart'}};
   if(extra)Object.assign(opts,extra);
   CH[id]=new Chart(ctx,{type:type,data:{labels:labels,datasets:datasets},options:opts});
-  // Zoom-Reset per Doppelklick
   ctx.ondblclick=function(){if(CH[id])CH[id].resetZoom();};
+  // Zoom-Steuerung (Buttons)
+  var oldBar=ctx.parentNode.querySelector('.zoom-ctrl');if(oldBar)oldBar.remove();
+  var zBar=document.createElement('div');
+  zBar.className='zoom-ctrl';
+  zBar.style.cssText='display:flex;justify-content:flex-end;gap:4px;margin-top:4px;';
+  var btnStyle='background:var(--card);border:1px solid rgba(0,0,0,.1);border-radius:8px;padding:3px 10px;font-size:14px;cursor:pointer;color:var(--t1);line-height:1.4;';
+  [['−',function(){CH[id]&&CH[id].zoom(0.8);}],['↺',function(){CH[id]&&CH[id].resetZoom();}],['+',function(){CH[id]&&CH[id].zoom(1.25);}]].forEach(function(b){
+    var btn=document.createElement('button');
+    btn.textContent=b[0];btn.style.cssText=btnStyle;
+    btn.onclick=b[1];
+    zBar.appendChild(btn);
+  });
+  ctx.parentNode.appendChild(zBar);
 }
 
 function getChartData(entries,period){
