@@ -539,7 +539,7 @@ var APP_VERSION='2026-06-16 v1.4';
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
   strompreis:0.32, einspeise:0.082, currency:'EUR',
-  autoFetch:true, fetchSec:5, activeSrc:'combined', chartPeriod:'week', darkMode:'auto',
+  autoFetch:true, fetchSec:3, activeSrc:'combined', chartPeriod:'week', darkMode:'auto',
   notifications:false, morgenBriefing:false, anschaffung:0, monatsZiel:0 };
 
 /* ── Demo data ── */
@@ -1980,7 +1980,7 @@ function rSet(){
   var iRow=div('row','cursor:default;flex-wrap:wrap;gap:8px;padding:12px 18px');
   iRow.innerHTML='<div class="ric" style="background:var(--tlb)">⏱</div><div class="rb"><div class="rl">Intervall</div></div>';
   var iSel=document.createElement('select');iSel.style.cssText='background:var(--bg2);color:var(--t);border:1px solid var(--sep);border-radius:8px;padding:6px 10px;font-size:14px;';
-  [3,5,10,15,30,60].forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v<60?v+' Sek.':'1 Min.';if((S.fetchSec||5)===v)o.selected=true;iSel.appendChild(o);});
+  [1,2,3,5,10,15,30,60].forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v<60?v+' Sek.':'1 Min.';if((S.fetchSec||3)===v)o.selected=true;iSel.appendChild(o);});
   iSel.onchange=function(){S.fetchSec=parseInt(this.value);svS();if(S.autoFetch&&S.marstekToken)schedFetch();rSet();};
   iRow.appendChild(iSel);sCard.appendChild(iRow);
   // Wake Lock toggle
