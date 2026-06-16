@@ -1056,12 +1056,12 @@ function patchHome(){
   // Update SOC ring
   var socRingEl=hcard.querySelector('svg');
   if(socRingEl){var tmp=div('');tmp.innerHTML=socRing(lv_soc,96,onGrad).outerHTML||'';var newSvg=socRing(lv_soc,96,onGrad);var oldSvg=hcard.querySelector('svg');if(oldSvg)oldSvg.parentNode.replaceChild(newSvg.querySelector?newSvg:newSvg,oldSvg);}
-  // Update flow SVG only
-  var fw=lv.battery&&lv.battery.chargeW||0;
-  var dw=lv.battery&&lv.battery.dischargeW||0;
-  var bChW=lv.venus&&lv.venus.charge||0;
-  var lw=lv.venus&&lv.venus.load||0;
-  var hausW=lv.venus&&lv.venus.haus!=null?lv.venus.haus:Math.max(0,Math.round(fw+dw+Math.max(0,lw)));
+  // Update flow SVG only — Solar nur von FoxESS, nie von Marstek
+  var fw=_pfx?foxessLive.pvW:0;
+  var dw=_pfx?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
+  var bChW=_pfx?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
+  var lw=_pfx?(foxessLive.gridW-foxessLive.feedinW):(lv&&lv.venus&&lv.venus.load||0);
+  var hausW=_pfx?Math.max(0,fw+dw-bChW+Math.max(0,lw)):(lv&&lv.venus&&lv.venus.haus!=null?lv.venus.haus:Math.max(0,Math.round(dw+Math.max(0,lw))));
   var netExport=lw<0;
   var W=320,H=185,R=22;
   var nSol={x:160,y:48},nNet={x:40,y:130},nAku={x:280,y:130},nHaus={x:160,y:130};
@@ -1727,7 +1727,7 @@ function rHome(){
   if(lv||foxessLive){
     // FoxESS-Werte bevorzugen wenn vorhanden
     var _fx=S.foxessEnabled&&!foxessIsStale();
-    var pvW2=_fx?foxessLive.pvW:(lv&&lv.battery&&lv.battery.chargeW||0);
+    var pvW2=_fx?foxessLive.pvW:S.foxessEnabled?0:(lv&&lv.battery&&lv.battery.chargeW||0);
     var dischargeW=_fx?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
     var bChW2=_fx?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
     if(_fx&&!lv_soc&&foxessLive.soc)lv_soc=foxessLive.soc;
