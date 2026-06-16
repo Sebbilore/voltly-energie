@@ -545,7 +545,8 @@ var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceN
   autoFetch:true, fetchSec:3, activeSrc:'combined', chartPeriod:'week', darkMode:'auto',
   notifications:false, morgenBriefing:false, anschaffung:0, monatsZiel:0,
   akkuKapazitaet:2.56, co2Faktor:350, socAlarmLow:20, socAlarmHigh:90,
-  kompaktAnsicht:false, wetterPLZ:'', wetterLat:null, wetterLon:null };
+  kompaktAnsicht:false, wetterPLZ:'', wetterLat:null, wetterLon:null,
+  sharePins:[], guestPerms:{showCharts:true,showHistory:true,showLive:true} };
 
 /* ── Demo data ── */
 var DEMO = (function() {
@@ -757,18 +758,63 @@ function doSignUp() {
 function bootApp(d) {
   demo=d; S=ldS(); E=ldE(); ldAccLocal();
   applyTheme(S.darkMode||'auto');
-  el('ls').style.display='none';
-  el('app').style.display='block';
   // Check for guest mode via URL param
   var guestPin=(new URLSearchParams(window.location.search)).get('guest');
   if(guestPin&&!d){
-    guestMode=true;
-    startGuestMode(guestPin.toUpperCase());
-    go('home');return;
+    el('ls').style.display='none';el('app').style.display='block';
+    guestMode=true;startGuestMode(guestPin.toUpperCase());go('home');return;
   }
+  // PLZ-Abfrage beim ersten echten Login (nicht Demo, nicht Gast)
+  if(!d&&!S.wetterPLZ&&!S._plzAsked){
+    S._plzAsked=true;svS();
+    showPlzOnboarding(function(){
+      el('ls').style.display='none';el('app').style.display='block';
+      if(S.marstekToken) schedFetch();
+      go('home');
+    });
+    return;
+  }
+  el('ls').style.display='none';
+  el('app').style.display='block';
   if(!d&&S.marstekToken) schedFetch();
   if(d) startDemo();
   go('home');
+}
+
+function showPlzOnboarding(done){
+  var ls=el('ls');
+  var lw=ls.querySelector('.lw');
+  // Hide existing content, show PLZ card
+  Array.from(lw.children).forEach(function(c){c.style.display='none';});
+  var card=document.createElement('div');
+  card.style.cssText='width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center';
+  card.innerHTML='<div style="font-size:48px">📍</div>'
+    +'<div style="font-size:22px;font-weight:800;letter-spacing:-.5px">Dein Standort</div>'
+    +'<div style="font-size:14px;color:var(--t3);line-height:1.6">Damit Voltly Wetterdaten und Sonnenzeiten für deine Region anzeigen kann.</div>';
+  var inp=document.createElement('input');
+  inp.type='text';inp.inputMode='numeric';inp.placeholder='Postleitzahl z.B. 53721';
+  inp.style.cssText='width:100%;box-sizing:border-box;padding:14px 16px;border-radius:14px;border:2px solid var(--sep2);background:var(--f);color:var(--t);font-size:18px;text-align:center;font-family:inherit;outline:none';
+  var btnOk=document.createElement('button');btnOk.className='btn b-or';btnOk.style.cssText='width:100%';btnOk.textContent='Weiter';
+  var btnSkip=document.createElement('button');btnSkip.className='btn b-gh';btnSkip.style.cssText='width:100%;font-size:13px';btnSkip.textContent='Überspringen';
+  function savePlz(){
+    var plz=inp.value.trim();
+    if(plz.length>=4){
+      S.wetterPLZ=plz;svS();
+      fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(plz)+'&count=1&language=de&format=json')
+        .then(function(r){return r.json();}).then(function(d2){
+          if(d2.results&&d2.results[0]){S.wetterLat=d2.results[0].latitude;S.wetterLon=d2.results[0].longitude;svS();}
+        }).catch(function(){});
+    }
+    lw.removeChild(card);
+    Array.from(lw.children).forEach(function(c){c.style.display='';});
+    done();
+  }
+  btnOk.onclick=savePlz;
+  btnSkip.onclick=function(){lw.removeChild(card);Array.from(lw.children).forEach(function(c){c.style.display='';});done();};
+  inp.onkeydown=function(e){if(e.key==='Enter')savePlz();};
+  card.appendChild(inp);card.appendChild(btnOk);card.appendChild(btnSkip);
+  lw.appendChild(card);
+  inp.focus();
 }
 
 /* ── Tabs ── */
@@ -954,11 +1000,26 @@ document.addEventListener('visibilitychange',function(){
 });
 
 /* ── Guest Share ── */
+function migrateSharePin(){
+  // Migrate old single sharePin to sharePins array
+  if(S.sharePin&&(!S.sharePins||!S.sharePins.length)){
+    S.sharePins=[{pin:S.sharePin,label:'Standard',created:new Date().toISOString()}];
+    delete S.sharePin;svS();
+  }
+}
 function shareWrite(){
-  if(!S.sharePin||!live)return;
-  ftch(VOLTLI_EDGE+'/share',{method:'POST',headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
-    body:JSON.stringify({action:'write',pin:S.sharePin,live_data:live,entries:E.slice(0,60),owner_email:S.marstekEmail||''})
-  },8).then(function(r){return r.json();}).catch(function(){});
+  migrateSharePin();
+  var pins=(S.sharePins||[]);
+  if(!pins.length||!live)return;
+  pins.forEach(function(p){
+    var pd=Object.assign({},live);
+    if(!S.guestPerms||!S.guestPerms.showLive)pd=null;
+    ftch(VOLTLI_EDGE+'/share',{method:'POST',headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
+      body:JSON.stringify({action:'write',pin:p.pin,live_data:pd,
+        entries:(S.guestPerms&&S.guestPerms.showHistory?E.slice(0,60):[]),
+        owner_email:S.marstekEmail||''})
+    },8).then(function(r){return r.json();}).catch(function(){});
+  });
 }
 
 function shareRead(pin,cb){
@@ -1228,8 +1289,11 @@ function exportPDF(){
 
 /* ── QR-Code ── */
 function showQR(){
-  if(!S.sharePin){toast('Zuerst Freigabe-PIN setzen');return;}
-  var url=window.location.href.split('?')[0]+'?guest='+S.sharePin;
+  migrateSharePin();
+  var activePin=S._qrPin||(S.sharePins&&S.sharePins[0]&&S.sharePins[0].pin)||'';
+  S._qrPin=null;
+  if(!activePin){toast('Zuerst Gastzugang einrichten');return;}
+  var url=window.location.href.split('?')[0]+'?guest='+activePin;
   showAlert('QR-Code teilen',url,[{label:'Schließen',bold:true,fn:closeAlert}]);
   setTimeout(function(){
     var m=document.querySelector('.al-m');
@@ -1596,6 +1660,28 @@ function rHome(){
   var eigenQ=acSol>0?Math.min(100,Math.round(acEigen/acSol*100)):0;
   var autarkieQ=acHaus>0?Math.min(100,Math.round(acEigen/acHaus*100)):0;
   var co2Heute=nf(acSol*(S.co2Faktor||350)/1000);
+
+  if(S.kompaktAnsicht){
+    // Kompakt: eine Zeile pro Wert, kein Grid, größere Zahlen
+    var kCard=div('card fu3','padding:0;overflow:hidden');
+    var kRows=[
+      {ic:'☀️',c:'var(--or)',v:acSol.toFixed(2),u:'kWh',l:'Solar'},
+      {ic:'🏠',c:'var(--pu)',v:acEigen.toFixed(2),u:'kWh',l:'Eigenverbrauch'},
+      {ic:'⚡',c:'var(--rd)',v:acGrd.toFixed(2),u:'kWh',l:'Netzbezug'},
+      {ic:'💶',c:'var(--gr)',v:acSav.toFixed(2),u:cur,l:'Ersparnis'},
+    ];
+    if(autarkieQ>0)kRows.push({ic:'🌿',c:'var(--gr)',v:autarkieQ,u:'%',l:'Autarkie'});
+    if(acHaus>0)kRows.push({ic:'🏡',c:'var(--bl)',v:acHaus.toFixed(2),u:'kWh',l:'Hauslast'});
+    kRows.forEach(function(r,i){
+      if(i>0){var s=document.createElement('div');s.style.cssText='height:.5px;background:var(--sep);margin:0 16px';kCard.appendChild(s);}
+      var row=div('','display:flex;align-items:center;padding:13px 18px;gap:14px');
+      row.innerHTML='<span style="font-size:20px">'+r.ic+'</span>'
+        +'<span style="flex:1;font-size:14px;color:var(--t2)">'+r.l+'</span>'
+        +'<span style="font-size:20px;font-weight:700;color:'+r.c+'">'+r.v+'<span style="font-size:12px;font-weight:400;color:var(--t3);margin-left:3px">'+r.u+'</span></span>';
+      kCard.appendChild(row);
+    });
+    f.appendChild(kCard);
+  } else {
   var baseTiles=[
     {ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:acSol.toFixed(2),u:'kWh',l:'Solarertrag',tip:'Gesamte Solarproduktion seit Mitternacht.'},
     {ic:'⚡',bg:'var(--rdb)',c:'var(--rd)',v:acGrd.toFixed(2),u:'kWh',l:'Netzbezug',tip:'Aus dem Netz bezogene Energie heute.'},
@@ -1605,7 +1691,8 @@ function rHome(){
   if(acHaus>0)baseTiles.push({ic:'🏡',bg:'var(--blb)',c:'var(--bl)',v:acHaus.toFixed(2),u:'kWh',l:'Hauslast',tip:'Gesamter Hausverbrauch heute.'});
   if(autarkieQ>0)baseTiles.push({ic:'🌿',bg:'var(--grb)',c:'var(--gr)',v:autarkieQ,u:'%',l:'Autarkie',tip:'Anteil des Hausverbrauchs aus eigener Energie.'});
   baseTiles.forEach(function(t){tg.appendChild(makeTile(t.ic,t.bg,t.v,t.u,t.c,t.l,t.tip));});
-  // Sync-Timestamp + Sonnenauf/-untergang
+  } // end kompaktAnsicht else
+  // Sync-Timestamp + Sonnenauf/-untergang (immer anzeigen)
   var infoRow=div('','display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--t4);padding:4px 2px 0');
   var syncTxt=lastFetch?'↻ '+new Date(lastFetch).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'↻ —';
   var sunTxt='';
@@ -1615,16 +1702,17 @@ function rHome(){
   }
   infoRow.innerHTML='<span id="sync-ts">'+syncTxt+'</span><span>'+sunTxt+'</span>';
   f.appendChild(infoRow);
-  // Effizienz nur wenn Daten vorhanden
-  if(acSol>0.01){var eff=effScore();tg.appendChild(makeTile('📊','var(--pub)',eff,'%','var(--pu)','Effizienz heute','Anteil Eigenenergie am Gesamtverbrauch.'));}
-  // Prognose nur wenn Wetterdaten + Verlaufsdaten vorhanden
-  if(weatherCache&&weatherCache.daily&&weatherCache.daily.sunshine_duration&&entries.length>3){
-    var sunH2=Math.round(weatherCache.daily.sunshine_duration[0]/3600);
-    var avgS2=entries.reduce(function(s,e){return s+gv(e,'solar');},0)/entries.length;
-    var progV=nf(avgS2*Math.min(1.8,sunH2/5)).toFixed(1);
-    tg.appendChild(makeTile('🔮','var(--orb)',progV,'kWh','var(--or)','Prognose heute','Basierend auf '+sunH2+'h Sonnenstunden.'));
+  if(!S.kompaktAnsicht){
+    // Effizienz + Prognose nur im normalen Modus
+    if(acSol>0.01){var eff=effScore();tg.appendChild(makeTile('📊','var(--pub)',eff,'%','var(--pu)','Effizienz heute','Anteil Eigenenergie am Gesamtverbrauch.'));}
+    if(weatherCache&&weatherCache.daily&&weatherCache.daily.sunshine_duration&&entries.length>3){
+      var sunH2=Math.round(weatherCache.daily.sunshine_duration[0]/3600);
+      var avgS2=entries.reduce(function(s,e){return s+gv(e,'solar');},0)/entries.length;
+      var progV=nf(avgS2*Math.min(1.8,sunH2/5)).toFixed(1);
+      tg.appendChild(makeTile('🔮','var(--orb)',progV,'kWh','var(--or)','Prognose heute','Basierend auf '+sunH2+'h Sonnenstunden.'));
+    }
+    f.appendChild(tg);
   }
-  f.appendChild(tg);
   // Ziel-Tracker
   if(S.monatsZiel>0){
     var mKey=today().slice(0,7);
@@ -2078,38 +2166,108 @@ function rSet(){
   }
   f.appendChild(sCard);
 
-  addSH(f,'🔗 Freigabe & Gastzugang','fu5');
-  var shCard=div('card fu5');
-  var pinVal=S.sharePin||'';
-  shCard.appendChild(makeRow('🔗','var(--blb)','Freigabe-PIN',pinVal?'PIN: '+pinVal+' · Aktiv':'Tippen zum Einrichten',null,null,true,openShareSettings));
-  if(pinVal){
-    shCard.appendChild(sepEl());
-    var shareUrl=window.location.href.split('?')[0]+'?guest='+pinVal;
-    var urlRow=div('row','cursor:pointer');
-    urlRow.innerHTML='<div class="ric" style="background:var(--grb)">🌐</div>'
-      +'<div class="rb"><div class="rl" style="font-size:13px">Gast-Link kopieren</div>'
-      +'<div class="rs" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+shareUrl+'</div></div>';
-    urlRow.onclick=function(){
-      navigator.clipboard&&navigator.clipboard.writeText(shareUrl).then(function(){toast('Link kopiert!');}).catch(function(){toast(shareUrl);});
+  addSH(f,'🔗 Freigabe & Gastzugänge','fu5');
+  migrateSharePin();
+  var pins=S.sharePins||[];
+
+  // Per-PIN cards
+  var baseUrl=window.location.href.split('?')[0];
+  pins.forEach(function(p,idx){
+    var pCard=div('card fu5','margin-bottom:8px');
+    // Header row: label + delete button
+    var hRow=div('','display:flex;align-items:center;gap:10px;padding:12px 16px 8px');
+    var lbl=document.createElement('input');
+    lbl.value=p.label||('Gast '+(idx+1));
+    lbl.style.cssText='flex:1;font-size:15px;font-weight:600;background:transparent;border:none;color:var(--t);font-family:inherit;outline:none;padding:0';
+    lbl.onchange=function(){pins[idx].label=this.value;svS();};
+    var delBtn=document.createElement('button');
+    delBtn.textContent='✕';delBtn.style.cssText='background:var(--rdb);color:var(--rd);border:none;border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer;font-weight:700';
+    delBtn.onclick=function(){
+      showAlert('Zugang löschen','PIN "'+p.pin+'" wirklich löschen?',[
+        {label:'Abbrechen',bold:true,fn:closeAlert},
+        {label:'Löschen',danger:true,fn:function(){S.sharePins.splice(idx,1);svS();closeAlert();rSet();}}
+      ]);
     };
-    shCard.appendChild(urlRow);
-    shCard.appendChild(sepEl());
-    var visRow=makeRow('👥','var(--pub)','Gast-Aktivität anzeigen',null,null,null,true,function(){
-      loadGuestVisits(pinVal,function(d){
-        var visits=d.visits||[];
-        if(!visits.length){toast('Noch keine Gäste');return;}
-        var msg=visits.slice(0,8).map(function(v){
-          var dt=new Date(v.visited_at);
-          return dt.toLocaleDateString('de-DE')+' '+dt.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-        }).join('\n');
-        showAlert('Gast-Aktivität ('+visits.length+')',msg,[{label:'OK',bold:true,fn:closeAlert}]);
+    hRow.appendChild(lbl);hRow.appendChild(delBtn);pCard.appendChild(hRow);
+    pCard.appendChild(sepEl());
+    // PIN badge + copy link
+    var pinRow=div('row','cursor:pointer');
+    var gUrl=baseUrl+'?guest='+p.pin;
+    pinRow.innerHTML='<div class="ric" style="background:var(--blb)">🔗</div>'
+      +'<div class="rb"><div class="rl" style="letter-spacing:3px;font-weight:800">'+p.pin+'</div>'
+      +'<div class="rs" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+gUrl+'</div></div>'
+      +'<span style="color:var(--t3);font-size:18px;padding-right:4px">⎘</span>';
+    pinRow.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(gUrl).then(function(){toast('Link für "'+p.label+'" kopiert ✓');}).catch(function(){toast(gUrl);});};
+    pCard.appendChild(pinRow);
+    pCard.appendChild(sepEl());
+    // QR + Aktivität
+    var actRow=div('','display:flex');
+    var qrBtn=div('row','flex:1;cursor:pointer;padding:12px 16px');
+    qrBtn.innerHTML='<div class="ric" style="background:var(--pub)">🔳</div><div class="rb"><div class="rl">QR-Code</div></div>';
+    qrBtn.onclick=function(){S._qrPin=p.pin;showQR();};
+    var visBtn=div('row','flex:1;cursor:pointer;padding:12px 16px;border-left:.5px solid var(--sep)');
+    visBtn.innerHTML='<div class="ric" style="background:var(--grb)">👁</div><div class="rb"><div class="rl">Aktivität</div></div>';
+    visBtn.onclick=function(){
+      loadGuestVisits(p.pin,function(d){
+        var vis=d.visits||[];
+        if(!vis.length){toast('Noch keine Gäste');return;}
+        var msg=vis.slice(0,10).map(function(v){var dt=new Date(v.visited_at);return dt.toLocaleDateString('de-DE')+' '+dt.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});}).join('\n');
+        showAlert('Aktivität: '+p.label+' ('+vis.length+')',msg,[{label:'OK',bold:true,fn:closeAlert}]);
       });
-    });
-    shCard.appendChild(visRow);
-    shCard.appendChild(sepEl());
-    shCard.appendChild(makeRow('🔳','var(--pub)','QR-Code teilen',null,null,null,true,showQR));
-  }
-  f.appendChild(shCard);
+    };
+    actRow.appendChild(qrBtn);actRow.appendChild(visBtn);pCard.appendChild(actRow);
+    f.appendChild(pCard);
+  });
+
+  // Add new PIN button
+  var addCard=div('card fu5');
+  var addRow=div('row','cursor:pointer');
+  addRow.innerHTML='<div class="ric" style="background:var(--grb)">＋</div><div class="rb"><div class="rl" style="color:var(--gr)">Neuen Gastzugang hinzufügen</div><div class="rs">Jeder PIN hat einen eigenen Link</div></div>';
+  addRow.onclick=function(){
+    showAlert('Neuer Gastzugang','PIN und Name vergeben:',
+      [{label:'Abbrechen',bold:true,fn:closeAlert},
+       {label:'Erstellen',fn:function(){
+         var ni=document.getElementById('new-pin-inp'),nl=document.getElementById('new-pin-lbl');
+         var np=(ni?ni.value.trim():'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+         var label=(nl?nl.value.trim():'')||('Gast '+(pins.length+1));
+         if(np.length<4){toast('Mindestens 4 Zeichen');return;}
+         if((S.sharePins||[]).find(function(x){return x.pin===np;})){toast('PIN bereits vorhanden');return;}
+         if(!S.sharePins)S.sharePins=[];
+         S.sharePins.push({pin:np,label:label,created:new Date().toISOString()});
+         svS();closeAlert();rSet();toast('Gastzugang "'+label+'" erstellt ✓');
+       }}]);
+    setTimeout(function(){
+      var msg=document.querySelector('.al-m');if(!msg)return;
+      var wr=document.createElement('div');wr.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:10px';
+      var li=document.createElement('input');li.id='new-pin-lbl';li.placeholder='Name z.B. Familie';li.style.cssText='padding:10px 14px;border-radius:10px;border:1.5px solid var(--sep2);font-size:15px;font-family:inherit;background:var(--f);color:var(--t);outline:none';
+      var pi=document.createElement('input');pi.id='new-pin-inp';pi.placeholder='PIN z.B. SOLAR24';pi.maxLength=8;pi.style.cssText='padding:10px 14px;border-radius:10px;border:1.5px solid var(--sep2);font-size:16px;text-transform:uppercase;text-align:center;letter-spacing:3px;font-family:inherit;background:var(--f);color:var(--t);outline:none';
+      pi.oninput=function(){this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');};
+      // Auto-generate PIN
+      var auto=Math.random().toString(36).slice(2,8).toUpperCase();
+      pi.value=auto;
+      wr.appendChild(li);wr.appendChild(pi);msg.appendChild(wr);li.focus();
+    },50);
+  };
+  addCard.appendChild(addRow);f.appendChild(addCard);
+
+  // Gast-Berechtigungen
+  addSH(f,'Gast-Berechtigungen','fu5b');
+  var gpCard=div('card fu5b');
+  var gp=S.guestPerms||{showLive:true,showHistory:true,showCharts:true};
+  [
+    {key:'showLive',ic:'⚡','label':'Live-Daten','sub':'Aktueller Energiefluss'},
+    {key:'showHistory',ic:'📅','label':'Verlauf','sub':'Tageseinträge + kWh'},
+    {key:'showCharts',ic:'📈','label':'Charts','sub':'Trend-Diagramme'}
+  ].forEach(function(item,i){
+    if(i>0)gpCard.appendChild(sepEl());
+    var r=div('row','cursor:default');
+    r.innerHTML='<div class="ric" style="background:var(--f2)">'+item.ic+'</div><div class="rb"><div class="rl">'+item.label+'</div><div class="rs">'+item.sub+'</div></div>';
+    var tL=document.createElement('label');tL.className='tog';
+    var tI=document.createElement('input');tI.type='checkbox';tI.checked=gp[item.key]!==false;
+    (function(k){tI.onchange=function(){if(!S.guestPerms)S.guestPerms={};S.guestPerms[k]=this.checked;svS();toast('Gespeichert ✓');};})(item.key);
+    tL.appendChild(tI);tL.appendChild(div('tog-tr'));tL.appendChild(div('tog-th'));r.appendChild(tL);gpCard.appendChild(r);
+  });
+  f.appendChild(gpCard);
 
   addSH(f,'Demo & Daten','fu6');var dCard=div('card fu6');var dRow=div('row','cursor:default');dRow.innerHTML='<div class="ric" style="background:var(--orb)">🎭</div><div class="rb"><div class="rl">Demo-Modus</div><div class="rs">Live-simulierte Beispieldaten</div></div>';var dL=document.createElement('label');dL.className='tog';var dI=document.createElement('input');dI.type='checkbox';if(demo)dI.checked=true;dI.onchange=function(){demo=this.checked;if(demo)startDemo();else stopDemo();if(curTab==='home')rHome();};dL.appendChild(dI);var dT=div('tog-tr');dL.appendChild(dT);var dH=div('tog-th');dL.appendChild(dH);dRow.appendChild(dL);dCard.appendChild(dRow);dCard.appendChild(sepEl());dCard.appendChild(makeRow('✏️','var(--pub)','Manuell eintragen',null,null,null,true,openMan));dCard.appendChild(sepEl());dCard.appendChild(makeRow('📊','var(--blb)','Als CSV exportieren','Excel / Steuererklärung',null,null,true,exportCSV));dCard.appendChild(sepEl());dCard.appendChild(makeRow('🖨','var(--grb)','Als PDF exportieren','Monatsbericht drucken',null,null,true,exportPDF));dCard.appendChild(sepEl());var delR=makeRow('🗑','var(--rdb)','Alle Daten löschen',null,null,'var(--rd)',false,function(){showAlert('Verlauf löschen','Alle lokalen Daten löschen?',[{label:'Abbrechen',bold:true,fn:closeAlert},{label:'Löschen',danger:true,fn:function(){E=[];svE();closeAlert();toast('Gelöscht');if(curTab==='home')rHome();}}]);});delR.querySelector('.rl').style.color='var(--rd)';dCard.appendChild(delR);f.appendChild(dCard);
 
@@ -2191,7 +2349,7 @@ function rSet(){
   aboutCard.appendChild(sepEl());
   aboutCard.appendChild(makeRow('⚡','var(--orb)','Version',APP_VERSION,null,'var(--or)',false,null));
   aboutCard.appendChild(sepEl());
-  aboutCard.appendChild(makeRow('🔋','var(--grb)','Kompatibel mit','Marstek Venus B2500 + CT002',null,null,false,null));
+  aboutCard.appendChild(makeRow('🔋','var(--grb)','Kompatibel mit','Marstek Venus B2500',null,null,false,null));
   aboutCard.appendChild(sepEl());
   aboutCard.appendChild(makeRow('☁️','var(--pub)','Backend','Firebase · Supabase Edge',null,null,false,null));
   f.appendChild(aboutCard);
