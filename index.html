@@ -354,6 +354,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 
 <!-- ══════ APP ══════ -->
 <div id="app">
+  <div id="offline-bar" style="display:none;background:#FF3B30;color:#fff;font-size:12px;font-weight:600;padding:8px 16px;text-align:center;gap:8px;align-items:center;justify-content:center;">⚠️ Keine Verbindung zu Marstek</div>
   <div class="scr" id="sc-home" style="display:none"><div class="si" id="hb"></div></div>
   <div class="scr" id="sc-src"  style="display:none"><div class="si" id="srb"></div></div>
   <div class="scr" id="sc-trnd" style="display:none"><div class="si" id="tdb"></div></div>
@@ -843,7 +844,7 @@ function fetchMarstek(silent) {
 
       updateAcc(pvW,dischargeW,loadW,hausW);
       checkNotifications(soc,pvW);
-      trackUptime(true);checkAnomalie();checkMorgenBriefing();
+      trackUptime(true);checkAnomalie();checkMorgenBriefing();checkTagesrekord();
       var hs={ts:Date.now(),chargeW:pvW,dischargeW:dischargeW,loadW:loadW,soc:soc};
       hourlyH.push(hs);if(hourlyH.length>192)hourlyH.shift();
       live={
@@ -932,6 +933,9 @@ function patchHome(){
     +fn(nAku.x,nAku.y,'🔋',lv_soc+'%',bChW>10?'lädt':dw>10?'entlädt':'Akku',cBat)
     +'</svg>';
   flowEl.innerHTML=newSvg;
+  // Sync-Timestamp aktualisieren
+  var sts=el('sync-ts');
+  if(sts&&lastFetch)sts.textContent='↻ '+new Date(lastFetch).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 // Always refresh when app comes back to foreground (even if interval is running)
 document.addEventListener('visibilitychange',function(){
@@ -1153,8 +1157,17 @@ function makeRow(ic,icBg,label,sub,val,valC,chevron,onclick){
 }
 function makeCard2(rows){var c=div('card');rows.forEach(function(r,i){if(i>0)c.appendChild(sepEl());c.appendChild(r);});return c;}
 function makeTile(ic,icBg,v,u,c,l,tip){
-  var t=div('tile');t.innerHTML='<div class="t-ic" style="background:'+icBg+'">'+ic+'</div><div class="t-v" style="color:'+c+'">'+v+'<span class="t-u">'+u+'</span></div><div class="t-l">'+l+'</div>';
-  if(tip)t.onclick=function(){showTip(tip);};return t;
+  var t=div('tile');t.innerHTML='<div class="t-ic" style="background:'+icBg+'">'+ic+'</div><div class="t-v" style="color:'+c+'" data-val="'+v+'">'+v+'<span class="t-u">'+u+'</span></div><div class="t-l">'+l+'</div>';
+  var tapped=false;
+  t.onclick=function(){
+    if(tapped){
+      navigator.clipboard&&navigator.clipboard.writeText(v+' '+u).then(function(){toast('📋 '+l+': '+v+' '+u+' kopiert');});
+      tapped=false;
+    } else {
+      tapped=true;setTimeout(function(){if(tapped){if(tip)showTip(tip);tapped=false;}},300);
+    }
+  };
+  return t;
 }
 function addSH(f,text,cls){var s=document.createElement('span');s.className='sh '+(cls||'');s.textContent=text;f.appendChild(s);return s;}
 function makeSeg(periods,current,fn){
@@ -1206,8 +1219,32 @@ function showQR(){
 
 /* ── Uptime ── */
 var _uptimeOk=0,_uptimeFail=0;
-function trackUptime(ok){if(ok)_uptimeOk++;else _uptimeFail++;}
+function trackUptime(ok){
+  if(ok){_uptimeOk++;_uptimeFail=Math.max(0,_uptimeFail-1);}else _uptimeFail++;
+  var ob=el('offline-bar');
+  if(ob)ob.style.display=_uptimeFail>=3?'flex':'none';
+}
 function uptimePct(){var t=_uptimeOk+_uptimeFail;return t?Math.round(_uptimeOk/t*100):100;}
+
+/* ── Live-Ticker ── */
+function animNum(elId,toVal,decimals){
+  var el2=el(elId);if(!el2)return;
+  var from=parseFloat(el2.getAttribute('data-val')||'0');
+  el2.setAttribute('data-val',toVal);
+  if(Math.abs(toVal-from)<0.001){el2.textContent=toVal.toFixed(decimals);return;}
+  var start=null,dur=400;
+  function step(ts){if(!start)start=ts;var p=Math.min((ts-start)/dur,1);el2.textContent=(from+(toVal-from)*p).toFixed(decimals);if(p<1)requestAnimationFrame(step);}
+  requestAnimationFrame(step);
+}
+
+/* ── Tagesrekord ── */
+var _rekordSentD='';
+function checkTagesrekord(){
+  var d=today();if(_rekordSentD===d)return;
+  if(acc.solar<0.5)return;
+  var maxHist=0;E.forEach(function(e){if(e.date!==d)maxHist=Math.max(maxHist,gv(e,'solar'));});
+  if(acc.solar>maxHist&&maxHist>0){_rekordSentD=d;toast('🏆 Neuer Tagesrekord: '+acc.solar.toFixed(2)+' kWh!');}
+}
 
 /* ── Anomalie-Erkennung ── */
 var _anomalieSentD='';
@@ -1543,6 +1580,16 @@ function rHome(){
   if(acHaus>0)baseTiles.push({ic:'🏡',bg:'var(--blb)',c:'var(--bl)',v:acHaus.toFixed(2),u:'kWh',l:'Hauslast',tip:'Gesamter Hausverbrauch heute.'});
   if(autarkieQ>0)baseTiles.push({ic:'🌿',bg:'var(--grb)',c:'var(--gr)',v:autarkieQ,u:'%',l:'Autarkie',tip:'Anteil des Hausverbrauchs aus eigener Energie.'});
   baseTiles.forEach(function(t){tg.appendChild(makeTile(t.ic,t.bg,t.v,t.u,t.c,t.l,t.tip));});
+  // Sync-Timestamp + Sonnenauf/-untergang
+  var infoRow=div('','display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--t4);padding:4px 2px 0');
+  var syncTxt=lastFetch?'↻ '+new Date(lastFetch).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'↻ —';
+  var sunTxt='';
+  if(weatherCache&&weatherCache.daily&&weatherCache.daily.sunrise){
+    var sr=new Date(weatherCache.daily.sunrise[0]);var ss=new Date(weatherCache.daily.sunset[0]);
+    sunTxt='🌅 '+sr.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' · 🌇 '+ss.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  }
+  infoRow.innerHTML='<span id="sync-ts">'+syncTxt+'</span><span>'+sunTxt+'</span>';
+  f.appendChild(infoRow);
   // Effizienz nur wenn Daten vorhanden
   if(acSol>0.01){var eff=effScore();tg.appendChild(makeTile('📊','var(--pub)',eff,'%','var(--pu)','Effizienz heute','Anteil Eigenenergie am Gesamtverbrauch.'));}
   // Prognose nur wenn Wetterdaten + Verlaufsdaten vorhanden
