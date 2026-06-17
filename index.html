@@ -1068,7 +1068,8 @@ function patchHome(){
   var dw=_pfx?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
   var bChW=_pfx?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
   var lw=_pfx?(foxessLive.gridW-foxessLive.feedinW):(lv&&lv.venus&&lv.venus.load||0);
-  var hausW=_pfx?Math.max(0,fw+dw-bChW+Math.max(0,lw)):(lv&&lv.venus&&lv.venus.haus!=null?lv.venus.haus:Math.max(0,Math.round(dw+Math.max(0,lw))));
+  var hausW=_pfx?Math.max(0,fw+dw-bChW+Math.max(0,lw))
+               :(bChW>0?0:Math.max(0,Math.round(dw>=2500?Math.max(2500,dw+Math.max(0,lw)):dw+Math.max(0,lw))));
   var netExport=lw<0;
   var W=320,H=185,R=22;
   var nSol={x:160,y:48},nNet={x:40,y:130},nAku={x:280,y:130},nHaus={x:160,y:130};
@@ -1790,9 +1791,10 @@ function rHome(){
   if(_fxf||lv){
     var fw=_fxf?foxessLive.pvW:0;
     var dw=_fxf?foxessLive.batDischargeW:(lv?lv.battery&&lv.battery.dischargeW||0:0);
-    var bChW=_fxf?foxessLive.batChargeW:0;
+    var bChW=_fxf?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
     var lw=_fxf?(foxessLive.gridW-foxessLive.feedinW):(lv?lv.venus&&lv.venus.load||0:0);
-    var hausW=_fxf?Math.max(0,foxessLive.pvW+dw-bChW+Math.max(0,lw)):Math.max(0,Math.round(dw+Math.max(0,lw)));
+    var hausW=_fxf?Math.max(0,foxessLive.pvW+dw-bChW+Math.max(0,lw))
+                  :(bChW>0?0:Math.max(0,Math.round(dw>=2500?Math.max(2500,dw+Math.max(0,lw)):dw+Math.max(0,lw))));
     var netExport=_fxf?(foxessLive.feedinW>foxessLive.gridW):(lw<0);
     var autarkie=hausW>0?Math.min(100,Math.round((hausW-Math.max(0,lw))/hausW*100)):0;
     var bv2=lv.battery;
