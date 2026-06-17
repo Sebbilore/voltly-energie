@@ -893,12 +893,12 @@ function fetchMarstek(silent) {
       // Marstek läuft immer — echte Messwerte: Akku-Entladung + Netzbezug
       // Solar=0 (Marstek kennt kein Solar), hausW=0 (nicht berechnen)
       updateAcc(0,dischargeW,loadW,0);
-      checkNotifications(soc,pvW);
+      checkNotifications(soc,0);
       trackUptime(true);checkAnomalie();checkMorgenBriefing();checkTagesrekord();
-      var hs={ts:Date.now(),chargeW:pvW,dischargeW:dischargeW,loadW:loadW,soc:soc};
+      var hs={ts:Date.now(),chargeW:chargeW,dischargeW:dischargeW,loadW:loadW,soc:soc};
       hourlyH.push(hs);if(hourlyH.length>192)hourlyH.shift();
       live={
-        battery:{soc:soc,cap:cap,chargeW:pvW,dischargeW:dischargeW,
+        battery:{soc:soc,cap:cap,chargeW:chargeW,dischargeW:dischargeW,
                  charge:nf(acc.solar),discharge:nf(acc.bat),temp:temp},
         venus:{pv:0,charge:chargeW,discharge:dischargeW,load:loadW,profit:profit,soc:soc},
         source:'cloud'
@@ -1797,7 +1797,7 @@ function rHome(){
                   :(bChW>0?0:Math.max(0,Math.round(dw>=2500?Math.max(2500,dw+Math.max(0,lw)):dw+Math.max(0,lw))));
     var netExport=_fxf?(foxessLive.feedinW>foxessLive.gridW):(lw<0);
     var autarkie=hausW>0?Math.min(100,Math.round((hausW-Math.max(0,lw))/hausW*100)):0;
-    var bv2=lv.battery;
+    var bv2=lv&&lv.battery;
     var progStr='';
     if(bv2&&fw>0&&bv2.cap>0){var rWh=(bv2.cap/1000)*(1-lv_soc/100)*1000;var mL=Math.round(rWh/(fw/60));if(mL>0&&mL<1440){var hh=Math.floor(mL/60),mm=mL%60;progStr='⏱ Voll in ~'+(hh>0?hh+'h ':'')+(mm>0?mm+'min':'');}}
     else if(bv2&&dw>0&&bv2.cap>0&&lv_soc>0){var rWh2=(bv2.cap/1000)*(lv_soc/100)*1000;var mL2=Math.round(rWh2/(dw/60));if(mL2>0&&mL2<2880){var un=new Date(Date.now()+mL2*60000);progStr='🌙 Reicht bis ~'+un.getHours()+':'+(un.getMinutes()<10?'0':'')+un.getMinutes()+' Uhr';}}
