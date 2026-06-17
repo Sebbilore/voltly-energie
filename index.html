@@ -887,7 +887,7 @@ function fetchMarstek(silent) {
       var ctLoadRaw=ctPhaseSum!==0?ctPhaseSum:(parseFloat(ctDev.load||0)||parseFloat(ctDev.grid||0));
       var loadW=ctLoadRaw!==0?ctLoadRaw:parseFloat(vDev.load||vDev.grid||0);
       var soc=parseInt(vDev.soc||0);
-      var temp=parseFloat(vDev.bat_temp||vDev.temperature||0);
+      var temp=parseFloat(vDev.bat_temp||vDev.temperature||vDev.batteryTemp||vDev.bms_temp||vDev.batt_temp||vDev.temp||0);
       var cap=parseFloat(vDev.bat_cap||vDev.capacity||5000);
       var profit=parseFloat(vDev.profit||0);
       // Marstek läuft immer — echte Messwerte: Akku-Entladung + Netzbezug
