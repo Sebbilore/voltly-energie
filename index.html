@@ -2081,7 +2081,7 @@ function rSrc(){
     var recChip=div('','background:rgba(255,255,255,.18);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px');
     recChip.innerHTML='<span style="font-size:18px">'+recIc+'</span><span style="font-size:13px;color:#fff;font-weight:500">'+recTxt+'</span>';
     akBanner.appendChild(recChip);
-    var tempRow=div('','margin-top:8px;font-size:12px;color:rgba(255,255,255,.6);text-align:right');tempRow.textContent=bv.temp>0?'🌡 '+bv.temp+' °C':'🌡 Temperatur nicht verfügbar';akBanner.appendChild(tempRow);
+
   } else {
     akBanner.innerHTML='<div style="text-align:center;padding:16px 0"><div style="font-size:36px;margin-bottom:10px">🔋</div><div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:6px">Marstek Venus</div><div style="font-size:13px;color:rgba(255,255,255,.7);margin-bottom:14px">Marstek verbinden für Akkudaten</div><button class="btn" style="background:rgba(255,255,255,.2);color:#fff" onclick="showOv(\'ml\')">Marstek verbinden</button></div>';
   }
