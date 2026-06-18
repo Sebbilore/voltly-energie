@@ -1094,22 +1094,12 @@ function fetchSolakon(silent){
       return r.json();
     });
   }).then(function(d){
-    console.log('Solakon aggregated:', JSON.stringify(d).slice(0,400));
-    // Flexible field parsing — log first to find the right fields
-    var pvW=0,todayKwh=0,totalKwh=0;
-    if(Array.isArray(d)){
-      // Array of inverters: pick matching SN or first
-      var sn=S.solakonDeviceId||'60M28010559K434';
-      var inv=d.find(function(x){return (x.sn||x.serialNumber||x.serial||x.id||'')===sn;})||d[0]||{};
-      d=inv;
-    }
-    // Try common field names for current power
-    pvW=parseFloat(d.currentPower||d.current_power||d.power||d.pac||d.p_ac||d.activePower||d.acPower||
-                   (d.realtime&&(d.realtime.currentPower||d.realtime.power))||0);
-    todayKwh=parseFloat(d.dailyEnergy||d.daily_energy||d.today||d.todayEnergy||d.eDay||
-                        (d.realtime&&d.realtime.dailyEnergy)||0);
-    totalKwh=parseFloat(d.totalEnergy||d.total_energy||d.lifeEnergy||d.eTotalLifetime||
-                        (d.realtime&&d.realtime.totalEnergy)||0);
+    // Response structure: { realtimeData: { currentPower, today, totalLifetime, timestamp, currentStatus } }
+    var rt=d.realtimeData||d;
+    var pvW=parseFloat(rt.currentPower||d.currentPower||0);
+    var todayKwh=parseFloat(rt.today||d.today||0);
+    var totalKwh=parseFloat(rt.totalLifetime||d.totalLifetime||0);
+    var status=rt.currentStatus||d.currentStatus||'unknown';
     solakonLive={pvW:pvW,todayKwh:todayKwh,totalKwh:totalKwh,ts:Date.now()};
     solakonLastFetch=Date.now();
     trackUptime(true);
