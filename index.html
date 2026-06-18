@@ -1087,7 +1087,7 @@ function fetchSolakon(silent){
     return ftch(VOLTLI_EDGE+'/solakon',{
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
-      body:JSON.stringify({action:'aggregated',access_token:token})
+      body:JSON.stringify({action:'aggregated',access_token:token,device_id:S.solakonDeviceId||'60M28010559K434'})
     },12).then(function(r){
       if(r.status===401){S.solakonAccessToken='';S.solakonAccessExp=0;svS();throw new Error('Token abgelaufen — bitte neu eintragen');}
       if(!r.ok)throw new Error('HTTP '+r.status);
