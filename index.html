@@ -547,7 +547,9 @@ var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceN
   akkuKapazitaet:2.56, co2Faktor:350, socAlarmLow:20, socAlarmHigh:90,
   kompaktAnsicht:false, wetterPLZ:'', wetterLat:null, wetterLon:null,
   sharePins:[], guestPerms:{showCharts:true,showHistory:true,showLive:true},
-  foxessApiKey:'', foxessDeviceSn:'', foxessEnabled:false };
+  foxessApiKey:'', foxessDeviceSn:'', foxessEnabled:false,
+  solakonRefreshToken:'3s4xztie6mi6', solakonAccessToken:'', solakonAccessExp:0,
+  solakonDeviceId:'60M28010559K434', solakonEnabled:false, solakonAnonKey:'' };
 
 /* ── Demo data ── */
 var DEMO = (function() {
@@ -927,13 +929,15 @@ function autoRelogin(){
 var lastFetch=0;
 function schedFetch(){
   clearInterval(fi);
-  var hasSrc=S.marstekToken||S.foxessEnabled;
+  var hasSrc=S.marstekToken||S.foxessEnabled||S.solakonEnabled;
   if(!hasSrc)return;
   if(S.marstekToken){fetchMarstek(true);fetchCT002Local(true);}
   if(S.foxessEnabled&&S.foxessApiKey&&S.foxessDeviceSn)fetchFoxESS(true);
+  if(S.solakonEnabled&&S.solakonRefreshToken)fetchSolakon(true);
   fi=setInterval(function(){
     if(S.marstekToken){fetchMarstek(true);fetchCT002Local(true);}
     if(S.foxessEnabled&&S.foxessApiKey&&S.foxessDeviceSn)fetchFoxESS(true);
+    if(S.solakonEnabled&&S.solakonRefreshToken)fetchSolakon(true);
   },(S.fetchSec||5)*1000);
 }
 
@@ -1026,16 +1030,129 @@ function doFetchFoxESS(silent){
     if(!silent)toast('FoxESS: '+e.message);
   });
 }
-function fetchAll(){var ic=el('ri');if(ic)ic.className='spin';fetchMarstek(false);setTimeout(function(){var ic=el('ri');if(ic)ic.className='';},1500);}
+function fetchAll(){var ic=el('ri');if(ic)ic.className='spin';fetchMarstek(false);if(S.solakonEnabled)fetchSolakon(false);setTimeout(function(){var ic=el('ri');if(ic)ic.className='';},1500);}
+
+/* ── Solakon ── */
+var SOLAKON_AUTH='https://db.app.solakon.de/auth/v1';
+var SOLAKON_REST='https://db.app.solakon.de/rest/v1';
+var solakonLive=null,solakonLastFetch=0;
+var SOLAKON_STALE_MS=30000;
+function solakonIsStale(){return !solakonLive||!solakonLastFetch||(Date.now()-solakonLastFetch>SOLAKON_STALE_MS);}
+function solakonKey(){return S.solakonAnonKey||'';}
+
+function solakonRefreshAccess(){
+  if(!S.solakonRefreshToken)return Promise.reject(new Error('Kein Refresh-Token'));
+  if(!solakonKey())return Promise.reject(new Error('Solakon API-Key fehlt → Einstellungen'));
+  return fetch(SOLAKON_AUTH+'/token?grant_type=refresh_token',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':solakonKey()},
+    body:JSON.stringify({refresh_token:S.solakonRefreshToken})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(!d.access_token)throw new Error('Token-Refresh fehlgeschlagen: '+(d.error_description||d.msg||JSON.stringify(d).slice(0,80)));
+    S.solakonAccessToken=d.access_token;
+    S.solakonAccessExp=Date.now()+(d.expires_in||3600)*1000-60000;
+    if(d.refresh_token)S.solakonRefreshToken=d.refresh_token;
+    svS();
+    return d.access_token;
+  });
+}
+
+function solakonGetToken(){
+  if(S.solakonAccessToken&&S.solakonAccessExp&&Date.now()<S.solakonAccessExp)
+    return Promise.resolve(S.solakonAccessToken);
+  return solakonRefreshAccess();
+}
+
+function fetchSolakon(silent){
+  if(!S.solakonEnabled||!S.solakonRefreshToken){if(!silent)toast('Solakon nicht konfiguriert');return;}
+  if(!solakonKey()){if(!silent)toast('Solakon API-Key fehlt → Einstellungen');return;}
+  solakonGetToken().then(function(token){
+    var sn=S.solakonDeviceId||'60M28010559K434';
+    var hdrs={'apikey':solakonKey(),'Authorization':'Bearer '+token,'Accept':'application/json'};
+    // Try PostgREST table patterns in sequence
+    function tryTable(tbl,filter){
+      return fetch(SOLAKON_REST+'/'+tbl+'?'+filter+'&limit=1&order=created_at.desc',{headers:hdrs})
+        .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
+        .then(function(d){if(!Array.isArray(d)||!d.length)throw new Error('leer');return d[0];});
+    }
+    return tryTable('devices','sn=eq.'+sn)
+      .catch(function(){return tryTable('inverters','sn=eq.'+sn);})
+      .catch(function(){return tryTable('inverters','device_sn=eq.'+sn);})
+      .catch(function(){return tryTable('power_readings','sn=eq.'+sn);})
+      .catch(function(){return tryTable('realtime','device_sn=eq.'+sn);})
+      .catch(function(){
+        // Fallback: list all tables we can see
+        return fetch(SOLAKON_REST+'/',{headers:hdrs}).then(function(r){return r.json();}).then(function(info){
+          console.warn('Solakon: Verfügbare Tabellen:',JSON.stringify(info).slice(0,300));
+          throw new Error('Tabelle nicht gefunden — siehe Konsole');
+        });
+      });
+  }).then(function(d){
+    console.log('Solakon raw data:', JSON.stringify(d).slice(0,300));
+    var pvW=parseFloat(d.current_power||d.currentPower||d.power||d.pv_power||d.pvPower||d.ac_power||d.pac||d.p_ac||0);
+    var todayKwh=parseFloat(d.today_energy||d.today||d.daily_energy||d.day_energy||d.e_today||0);
+    var totalKwh=parseFloat(d.total_energy||d.lifetime_energy||d.totalEnergy||d.e_total||0);
+    solakonLive={pvW:pvW,todayKwh:todayKwh,totalKwh:totalKwh,ts:Date.now()};
+    solakonLastFetch=Date.now();
+    trackUptime(true);
+    if(curTab==='home')patchHome();
+    if(curTab==='src')rSrc();
+    if(!silent)toast('Solakon ☀️ '+pvW+'W');
+  }).catch(function(e){
+    trackUptime(false);
+    if(!silent)toast('Solakon: '+e.message);
+    console.error('Solakon Fehler:',e.message);
+  });
+}
+
+function openSolakonSettings(){
+  showAlert('Solakon Wechselrichter',
+    'FoxESS M1 800 via Solakon-App verbinden.',
+    [{label:'Abbrechen',bold:true,fn:closeAlert},
+     {label:'Speichern',fn:function(){
+       var ti=document.getElementById('sk-tok-inp'),di=document.getElementById('sk-dev-inp'),ki=document.getElementById('sk-key-inp');
+       var tok=(ti?ti.value.trim():''),dev=(di?di.value.trim():''),key=(ki?ki.value.trim():'');
+       if(!tok){toast('Refresh-Token erforderlich');return;}
+       if(!key){toast('API-Key erforderlich');return;}
+       S.solakonRefreshToken=tok;
+       S.solakonDeviceId=dev||'60M28010559K434';
+       S.solakonAnonKey=key;
+       S.solakonAccessToken='';S.solakonAccessExp=0;
+       S.solakonEnabled=true;
+       svS();closeAlert();
+       toast('Solakon gespeichert — verbinde…');
+       fetchSolakon(false);
+       if(S.autoFetch)schedFetch();
+       rSet();
+     }},
+     S.solakonEnabled?{label:'Deaktivieren',danger:true,fn:function(){
+       S.solakonEnabled=false;solakonLive=null;svS();closeAlert();rSet();toast('Solakon deaktiviert');
+     }}:{label:'',fn:closeAlert}
+    ].filter(function(b){return b.label;})
+  );
+  setTimeout(function(){
+    var msg=document.querySelector('.al-m');if(!msg)return;
+    var wr=document.createElement('div');wr.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:12px';
+    var stl='padding:10px 14px;border-radius:10px;border:1.5px solid var(--sep2);font-size:13px;font-family:inherit;background:var(--f);color:var(--t);outline:none;width:100%;box-sizing:border-box';
+    var ti=document.createElement('input');ti.id='sk-tok-inp';ti.type='text';ti.value=S.solakonRefreshToken||'';ti.placeholder='Refresh-Token';ti.style.cssText=stl;
+    var di=document.createElement('input');di.id='sk-dev-inp';di.type='text';di.value=S.solakonDeviceId||'60M28010559K434';di.placeholder='Device-ID (Seriennr.)';di.style.cssText=stl;
+    var ki=document.createElement('input');ki.id='sk-key-inp';ki.type='text';ki.value=S.solakonAnonKey||'';ki.placeholder='API-Key (eyJhbGc…)';ki.style.cssText=stl;
+    var inf=document.createElement('div');
+    inf.style.cssText='font-size:11px;color:var(--t3);line-height:1.7;padding:4px 2px';
+    inf.innerHTML='🔑 <b>API-Key finden:</b> app.solakon.de im Browser öffnen → F12 → Netzwerk-Tab → eine beliebige Anfrage → Header <b>apikey</b> kopieren';
+    wr.appendChild(ti);wr.appendChild(di);wr.appendChild(ki);wr.appendChild(inf);msg.appendChild(wr);ki.focus();
+  },50);
+}
 
 function patchHome(){
   var lv=al();
   var hcard=el('lv-hcard');var flowEl=el('lv-flow');
   if(!hcard||!flowEl){rHome();return;}
   var _pfx=S.foxessEnabled&&!foxessIsStale();
+  var _skx=S.solakonEnabled&&solakonLive&&!solakonIsStale();
   // Jedes Gerät nur seine eigenen Messwerte — kein Fallback zwischen Geräten
   var lv_soc=_pfx?foxessLive.soc:(lv?lv.battery&&lv.battery.soc||0:0);
-  var chargeW=_pfx?foxessLive.pvW:0;         // Solar: nur FoxESS
+  var chargeW=_pfx?foxessLive.pvW:(_skx?solakonLive.pvW:0); // Solar: FoxESS oder Solakon
   var dischargeW=_pfx?foxessLive.batDischargeW:(lv?lv.battery&&lv.battery.dischargeW||0:0); // Akku: FoxESS oder Marstek (selber Akku)
   var bChWp=_pfx?foxessLive.batChargeW:0;    // Akku-Laden (AC): nur FoxESS kennt das
   var isSolar=chargeW>10;var isBatCharging=bChWp>10;
@@ -1117,6 +1234,7 @@ function patchHome(){
     patchTileVal('grid',acGrd2,2);
     patchTileVal('sav',acSav2,2);
     patchTileVal('haus',acHaus2,2);
+    var autQ2=acHaus2>0?Math.min(100,Math.round((acHaus2-Math.max(0,acGrd2))/acHaus2*100)):0;
     patchTileVal('aut',autQ2,0);
   }
 }
@@ -1731,8 +1849,9 @@ function rHome(){
 
 
   var _fx=S.foxessEnabled&&!foxessIsStale();
-  if(_fx||lv){
-    var pvW2=_fx?foxessLive.pvW:0;
+  var _sk=S.solakonEnabled&&solakonLive&&!solakonIsStale();
+  if(_fx||_sk||lv){
+    var pvW2=_fx?foxessLive.pvW:(_sk?solakonLive.pvW:0);
     var dischargeW=_fx?foxessLive.batDischargeW:(lv?lv.battery&&lv.battery.dischargeW||0:0);
     var bChW2=_fx?foxessLive.batChargeW:0;
     if(_fx&&!lv_soc&&foxessLive.soc)lv_soc=foxessLive.soc;
@@ -1788,8 +1907,9 @@ function rHome(){
 
   // Animated SVG energy flow card
   var _fxf=S.foxessEnabled&&!foxessIsStale();
-  if(_fxf||lv){
-    var fw=_fxf?foxessLive.pvW:0;
+  var _skf=S.solakonEnabled&&solakonLive&&!solakonIsStale();
+  if(_fxf||_skf||lv){
+    var fw=_fxf?foxessLive.pvW:(_skf?solakonLive.pvW:0);
     var dw=_fxf?foxessLive.batDischargeW:(lv?lv.battery&&lv.battery.dischargeW||0:0);
     var bChW=_fxf?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
     var lw=_fxf?(foxessLive.gridW-foxessLive.feedinW):(lv?lv.venus&&lv.venus.load||0:0);
@@ -1987,7 +2107,8 @@ function rSrc(){
   var ctCard=div('card fu');
   if(lv&&lv.source==='cloud'&&ct){
     var netW=ct.load||0;
-    var pvW2=S.foxessEnabled&&!foxessIsStale()?foxessLive.pvW:0; // Solar nur von FoxESS
+    var _skx2=S.solakonEnabled&&solakonLive&&!solakonIsStale();
+    var pvW2=S.foxessEnabled&&!foxessIsStale()?foxessLive.pvW:(_skx2?solakonLive.pvW:0); // Solar: FoxESS oder Solakon
     var disW2=ct.discharge||0;
     var chW2=ct.charge||0;
     var hausW2=Math.max(0,Math.round(pvW2+disW2+Math.max(0,netW)-chW2));
@@ -2108,6 +2229,33 @@ function rSrc(){
     var fxNc=div('grad-card fu2','background:linear-gradient(135deg,#f5a623,#e8870a);padding:20px;margin-bottom:12px;text-align:center');
     fxNc.innerHTML='<div style="font-size:32px;margin-bottom:8px">☀️</div><div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:4px">FoxESS M1 800</div><div style="font-size:13px;color:rgba(255,255,255,.75)">Warte auf Verbindung…</div>';
     f.appendChild(fxNc);
+  }
+  // Solakon Banner
+  var _skxs=S.solakonEnabled&&solakonLive&&!solakonIsStale();
+  if(_skxs){
+    var skBanner=div('grad-card fu2','background:linear-gradient(135deg,#34C759,#1a7a3c);padding:20px;margin-bottom:12px');
+    var skTop=div('','display:flex;align-items:center;justify-content:space-between;margin-bottom:12px');
+    var skInfo=div('');
+    skInfo.innerHTML='<div style="font-size:13px;opacity:.7;margin-bottom:4px">Solakon · FoxESS M1 800</div>'
+      +'<div style="font-size:36px;font-weight:800;color:#fff;line-height:1">'+Math.round(solakonLive.pvW)+'<span style="font-size:16px;font-weight:400;margin-left:4px">W</span></div>'
+      +'<div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px">Solarleistung aktuell</div>';
+    skTop.appendChild(skInfo);
+    var skIcon=div('','font-size:48px;opacity:.6');skIcon.textContent='⚡';skTop.appendChild(skIcon);
+    skBanner.appendChild(skTop);
+    var skStats=div('','display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:.5px solid rgba(255,255,255,.25);padding-top:12px');
+    [[solakonLive.todayKwh.toFixed(2)+' kWh','Heute'],[solakonLive.totalKwh.toFixed(0)+' kWh','Gesamt']].forEach(function(r){
+      var s=div('','text-align:center');s.innerHTML='<div style="font-size:18px;font-weight:700;color:#fff">'+r[0]+'</div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px">'+r[1]+'</div>';skStats.appendChild(s);
+    });
+    skBanner.appendChild(skStats);
+    f.appendChild(skBanner);
+  } else if(S.solakonEnabled){
+    var skNc=div('grad-card fu2','background:linear-gradient(135deg,#34C759,#1a7a3c);padding:20px;margin-bottom:12px;text-align:center');
+    skNc.innerHTML='<div style="font-size:32px;margin-bottom:8px">⚡</div>'
+      +'<div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:4px">Solakon · FoxESS M1 800</div>'
+      +(S.solakonAnonKey?'<div style="font-size:13px;color:rgba(255,255,255,.75)">Verbinde…</div>'
+        :'<div style="font-size:13px;color:rgba(255,255,255,.9);font-weight:600">⚠️ API-Key fehlt → Einstellungen</div>');
+    skNc.onclick=function(){openSolakonSettings();};
+    f.appendChild(skNc);
   }
 
   // SOC 24h Verlauf
@@ -2342,6 +2490,16 @@ function rSet(){
     +'<span style="color:var(--t3);font-size:20px">›</span>';
   fxRow.onclick=function(){openFoxESSSettings();};
   devCard.appendChild(fxRow);
+  devCard.appendChild(sepEl());
+  // Solakon
+  var skRow=div('row','cursor:pointer');
+  var skStatus=S.solakonEnabled&&S.solakonDeviceId?'✅ '+S.solakonDeviceId+(S.solakonAnonKey?'':' — API-Key fehlt!'):'Tippen zum Einrichten';
+  var skColor=S.solakonEnabled&&!S.solakonAnonKey?'var(--rd)':'var(--t3)';
+  skRow.innerHTML='<div class="ric" style="background:linear-gradient(135deg,#34C759,#248A3D)">⚡</div>'
+    +'<div class="rb"><div class="rl">Solakon (FoxESS M1 800)</div><div class="rs" style="color:'+skColor+'">'+skStatus+'</div></div>'
+    +'<span style="color:var(--t3);font-size:20px">›</span>';
+  skRow.onclick=function(){openSolakonSettings();};
+  devCard.appendChild(skRow);
   f.appendChild(devCard);
 
   addSH(f,'Darstellung','fu2');
