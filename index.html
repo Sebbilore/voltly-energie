@@ -1083,13 +1083,12 @@ function solakonGetToken(){
 function fetchSolakon(silent){
   if(!S.solakonEnabled||(!S.solakonRefreshToken&&!S.solakonAccessToken)){if(!silent)toast('Solakon nicht konfiguriert');return;}
   solakonGetToken().then(function(token){
-    // Route through Voltly proxy to avoid CORS on api.app.solakon.de
-    return ftch(VOLTLI_EDGE+'/solakon',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
-      body:JSON.stringify({action:'aggregated',access_token:token,device_id:S.solakonDeviceId||'60M28010559K434'})
-    },12).then(function(r){
-      if(r.status===401){S.solakonAccessToken='';S.solakonAccessExp=0;svS();throw new Error('Token abgelaufen — bitte neu eintragen');}
+    // Direct browser fetch — Cloudflare WAF blocks server-side requests (sec-fetch-site check)
+    var sn=S.solakonDeviceId||'60M28010559K434';
+    return fetch('https://api.app.solakon.de/v1/inverter/'+encodeURIComponent(sn)+'/aggregated',{
+      headers:{'Authorization':'Bearer '+token,'Accept':'*/*','x-app-version':'1.102.10'}
+    }).then(function(r){
+      if(r.status===401){S.solakonAccessToken='';S.solakonAccessExp=0;svS();throw new Error('Token abgelaufen');}
       if(!r.ok)throw new Error('HTTP '+r.status);
       return r.json();
     });
