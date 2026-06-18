@@ -1121,23 +1121,43 @@ function fetchSolakon(silent){
   });
 }
 
+function solakonLogin(email,pw,cb){
+  var SOLAKON_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhbnprdXNmb3BzZHNleXR0cXZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDE0MjI1NjIsImV4cCI6MjAxNjk5ODU2Mn0.7DSCHpXmLq2BJMwPvTNyDUc8Y6NkS_ZbOrQhKLbT4MU';
+  fetch(SOLAKON_AUTH_URL+'/token?grant_type=password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SOLAKON_ANON},
+    body:JSON.stringify({email:email,password:pw})
+  }).then(function(r){return r.json();}).then(function(d){
+    console.log('[Solakon] Login Antwort:',JSON.stringify(d).slice(0,120));
+    if(!d.access_token){cb(null,'Login fehlgeschlagen: '+(d.error_description||d.msg||d.error||'Falsches Passwort'));return;}
+    S.solakonAccessToken=d.access_token;
+    S.solakonAccessExp=_parseJwtExp(d.access_token)||Date.now()+3500000;
+    S.solakonRefreshToken=d.refresh_token||'';
+    S.solakonEnabled=true;
+    svS();
+    cb(d.access_token,null);
+  }).catch(function(e){cb(null,e.message);});
+}
+
 function openSolakonSettings(){
+  var exp=S.solakonAccessExp&&S.solakonAccessExp>Date.now()?Math.round((S.solakonAccessExp-Date.now())/60000)+' min gültig':'abgelaufen';
   showAlert('Solakon · FoxESS M1 800',
-    'Access-Token aus DevTools (F12 → Netzwerk → Anfrage → Authorization-Header).',
+    'Mit Solakon-Konto anmelden (Email + Passwort von app.solakon.de).',
     [{label:'Abbrechen',bold:true,fn:closeAlert},
-     {label:'Speichern',fn:function(){
-       var ri=document.getElementById('sk-rt-inp'),ai=document.getElementById('sk-at-inp'),di=document.getElementById('sk-dev-inp');
-       var rt=(ri?ri.value.trim():''),at=(ai?ai.value.trim():''),dev=(di?di.value.trim():'');
-       if(!rt&&!at){toast('Refresh-Token oder Access-Token erforderlich');return;}
-       S.solakonRefreshToken=rt||S.solakonRefreshToken;
+     {label:'Anmelden & Speichern',fn:function(){
+       var ei=document.getElementById('sk-em-inp'),pi=document.getElementById('sk-pw-inp'),di=document.getElementById('sk-dev-inp');
+       var em=(ei?ei.value.trim():''),pw=(pi?pi.value.trim():''),dev=(di?di.value.trim():'');
+       if(!em||!pw){toast('E-Mail und Passwort erforderlich');return;}
        S.solakonDeviceId=dev||'60M28010559K434';
-       if(at){S.solakonAccessToken=at;S.solakonAccessExp=_parseJwtExp(at)||Date.now()+3500000;}
-       S.solakonEnabled=true;
-       svS();closeAlert();
-       toast('Solakon gespeichert — verbinde…');
-       fetchSolakon(false);
-       if(S.autoFetch)schedFetch();
-       rSet();
+       var btn=document.querySelector('.al-btn:last-child');if(btn)btn.textContent='…';
+       solakonLogin(em,pw,function(tok,err){
+         if(err){toast('Solakon: '+err);if(btn)btn.textContent='Anmelden & Speichern';return;}
+         closeAlert();
+         toast('Solakon angemeldet ✓');
+         fetchSolakon(false);
+         if(S.autoFetch)schedFetch();
+         rSet();
+       });
      }},
      S.solakonEnabled?{label:'Deaktivieren',danger:true,fn:function(){
        S.solakonEnabled=false;solakonLive=null;svS();closeAlert();rSet();toast('Solakon deaktiviert');
@@ -1148,15 +1168,13 @@ function openSolakonSettings(){
     var msg=document.querySelector('.al-m');if(!msg)return;
     var wr=document.createElement('div');wr.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:12px';
     var stl='padding:10px 14px;border-radius:10px;border:1.5px solid var(--sep2);font-size:13px;font-family:inherit;background:var(--f);color:var(--t);outline:none;width:100%;box-sizing:border-box';
-    var ri=document.createElement('input');ri.id='sk-rt-inp';ri.type='text';ri.value=S.solakonRefreshToken||'';ri.placeholder='Refresh-Token (z.B. 3s4xztie6mi6)';ri.style.cssText=stl;
-    var ai=document.createElement('input');ai.id='sk-at-inp';ai.type='text';ai.value='';ai.placeholder='Access-Token (eyJhbGc… aus DevTools)';ai.style.cssText=stl;
+    var ei=document.createElement('input');ei.id='sk-em-inp';ei.type='email';ei.value='lorenzfp@outlook.de';ei.placeholder='E-Mail (Solakon-Konto)';ei.style.cssText=stl;
+    var pi=document.createElement('input');pi.id='sk-pw-inp';pi.type='password';pi.value='';pi.placeholder='Passwort (Solakon)';pi.style.cssText=stl;
     var di=document.createElement('input');di.id='sk-dev-inp';di.type='text';di.value=S.solakonDeviceId||'60M28010559K434';di.placeholder='Device-ID / Seriennummer';di.style.cssText=stl;
-    var exp=S.solakonAccessExp&&S.solakonAccessExp>Date.now()?Math.round((S.solakonAccessExp-Date.now())/60000)+' min gültig':'abgelaufen';
     var inf=document.createElement('div');
-    inf.style.cssText='font-size:11px;color:var(--t3);line-height:1.7;padding:4px 2px';
-    inf.innerHTML='Status: <b style="color:'+(S.solakonAccessExp>Date.now()?'var(--gr)':'var(--rd)')+'">'+exp+'</b><br>'
-      +'Token holen: app.solakon.de → F12 → Netzwerk → Anfrage → Header <b>Authorization</b> → "Bearer eyJ..." kopieren';
-    wr.appendChild(ri);wr.appendChild(ai);wr.appendChild(di);wr.appendChild(inf);msg.appendChild(wr);ai.focus();
+    inf.style.cssText='font-size:11px;color:var(--t3);line-height:1.6;padding:4px 2px';
+    inf.innerHTML='Token-Status: <b style="color:'+(S.solakonAccessExp>Date.now()?'var(--gr)':'var(--rd)')+'">'+exp+'</b>';
+    wr.appendChild(ei);wr.appendChild(pi);wr.appendChild(di);wr.appendChild(inf);msg.appendChild(wr);pi.focus();
   },50);
 }
 
