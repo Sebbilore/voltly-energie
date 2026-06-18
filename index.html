@@ -1045,56 +1045,64 @@ function _parseJwtExp(tok){
 
 function solakonRefreshAccess(){
   if(!S.solakonRefreshToken)return Promise.reject(new Error('Kein Refresh-Token'));
-  // Try to refresh via Voltly proxy (avoids need for Solakon anon key client-side)
+  console.log('[Solakon] Refresh via Proxy, RT:',S.solakonRefreshToken.slice(0,6)+'…');
   return ftch(VOLTLI_EDGE+'/solakon',{
     method:'POST',
     headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
     body:JSON.stringify({action:'refresh',refresh_token:S.solakonRefreshToken})
   },12).then(function(r){return r.json();}).then(function(d){
+    console.log('[Solakon] Proxy-Refresh Antwort:',JSON.stringify(d).slice(0,120));
     if(d.access_token){
       S.solakonAccessToken=d.access_token;
       S.solakonAccessExp=_parseJwtExp(d.access_token)||Date.now()+3500000;
       if(d.refresh_token)S.solakonRefreshToken=d.refresh_token;
       svS();
+      console.log('[Solakon] Proxy-Refresh OK, AT exp:',new Date(S.solakonAccessExp).toLocaleTimeString());
       return d.access_token;
     }
-    // Fallback: direct browser call with public anon key
+    console.warn('[Solakon] Proxy-Refresh kein access_token, versuche direkten Fallback…');
     var SOLAKON_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhbnprdXNmb3BzZHNleXR0cXZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDE0MjI1NjIsImV4cCI6MjAxNjk5ODU2Mn0.7DSCHpXmLq2BJMwPvTNyDUc8Y6NkS_ZbOrQhKLbT4MU';
     return fetch(SOLAKON_AUTH_URL+'/token?grant_type=refresh_token',{
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':SOLAKON_ANON},
       body:JSON.stringify({refresh_token:S.solakonRefreshToken})
     }).then(function(r){return r.json();}).then(function(d2){
+      console.log('[Solakon] Direkt-Refresh Antwort:',JSON.stringify(d2).slice(0,120));
       if(!d2.access_token)throw new Error('Token abgelaufen — bitte erneut in Einstellungen eintragen');
       S.solakonAccessToken=d2.access_token;
       S.solakonAccessExp=_parseJwtExp(d2.access_token)||Date.now()+3500000;
       if(d2.refresh_token)S.solakonRefreshToken=d2.refresh_token;
       svS();
+      console.log('[Solakon] Direkt-Refresh OK, AT exp:',new Date(S.solakonAccessExp).toLocaleTimeString());
       return d2.access_token;
     });
   });
 }
 
 function solakonGetToken(){
-  if(S.solakonAccessToken&&S.solakonAccessExp&&Date.now()<S.solakonAccessExp)
+  if(S.solakonAccessToken&&S.solakonAccessExp&&Date.now()<S.solakonAccessExp){
+    console.log('[Solakon] Access-Token noch gültig bis',new Date(S.solakonAccessExp).toLocaleTimeString());
     return Promise.resolve(S.solakonAccessToken);
+  }
+  console.log('[Solakon] Access-Token abgelaufen/fehlt → Refresh…');
   return solakonRefreshAccess();
 }
 
 function fetchSolakon(silent){
   if(!S.solakonEnabled||(!S.solakonRefreshToken&&!S.solakonAccessToken)){if(!silent)toast('Solakon nicht konfiguriert');return;}
   solakonGetToken().then(function(token){
-    // Direct browser fetch — Cloudflare WAF blocks server-side requests (sec-fetch-site check)
     var sn=S.solakonDeviceId||'60M28010559K434';
+    console.log('[Solakon] Lade Daten für',sn,'AT:…'+token.slice(-8));
     return fetch('https://api.app.solakon.de/v1/inverter/'+encodeURIComponent(sn)+'/aggregated',{
       headers:{'Authorization':'Bearer '+token,'Accept':'*/*','x-app-version':'1.102.10'}
     }).then(function(r){
+      console.log('[Solakon] Daten-Response HTTP',r.status);
       if(r.status===401){S.solakonAccessToken='';S.solakonAccessExp=0;svS();throw new Error('Token abgelaufen');}
       if(!r.ok)throw new Error('HTTP '+r.status);
       return r.json();
     });
   }).then(function(d){
-    // Response structure: { realtimeData: { currentPower, today, totalLifetime, timestamp, currentStatus } }
+    console.log('[Solakon] Daten empfangen:',JSON.stringify(d).slice(0,200));
     var rt=d.realtimeData||d;
     var pvW=parseFloat(rt.currentPower||d.currentPower||0);
     var todayKwh=parseFloat(rt.today||d.today||0);
@@ -1109,7 +1117,7 @@ function fetchSolakon(silent){
   }).catch(function(e){
     trackUptime(false);
     if(!silent)toast('Solakon: '+e.message);
-    console.error('Solakon Fehler:',e.message);
+    console.error('[Solakon] Fehler:',e.message,e);
   });
 }
 
