@@ -1033,27 +1033,44 @@ function doFetchFoxESS(silent){
 function fetchAll(){var ic=el('ri');if(ic)ic.className='spin';fetchMarstek(false);if(S.solakonEnabled)fetchSolakon(false);setTimeout(function(){var ic=el('ri');if(ic)ic.className='';},1500);}
 
 /* ── Solakon ── */
-var SOLAKON_AUTH='https://db.app.solakon.de/auth/v1';
-var SOLAKON_REST='https://db.app.solakon.de/rest/v1';
+var SOLAKON_API_BASE='https://api.app.solakon.de/v1';
+var SOLAKON_AUTH_URL='https://banzkusfopsdseyttqvm.supabase.co/auth/v1';
 var solakonLive=null,solakonLastFetch=0;
 var SOLAKON_STALE_MS=30000;
 function solakonIsStale(){return !solakonLive||!solakonLastFetch||(Date.now()-solakonLastFetch>SOLAKON_STALE_MS);}
-function solakonKey(){return S.solakonAnonKey||'';}
+
+function _parseJwtExp(tok){
+  try{var p=JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));return p.exp?p.exp*1000:0;}catch(e){return 0;}
+}
 
 function solakonRefreshAccess(){
   if(!S.solakonRefreshToken)return Promise.reject(new Error('Kein Refresh-Token'));
-  if(!solakonKey())return Promise.reject(new Error('Solakon API-Key fehlt → Einstellungen'));
-  return fetch(SOLAKON_AUTH+'/token?grant_type=refresh_token',{
+  // Try to refresh via Voltly proxy (avoids need for Solakon anon key client-side)
+  return ftch(VOLTLI_EDGE+'/solakon',{
     method:'POST',
-    headers:{'Content-Type':'application/json','apikey':solakonKey()},
-    body:JSON.stringify({refresh_token:S.solakonRefreshToken})
-  }).then(function(r){return r.json();}).then(function(d){
-    if(!d.access_token)throw new Error('Token-Refresh fehlgeschlagen: '+(d.error_description||d.msg||JSON.stringify(d).slice(0,80)));
-    S.solakonAccessToken=d.access_token;
-    S.solakonAccessExp=Date.now()+(d.expires_in||3600)*1000-60000;
-    if(d.refresh_token)S.solakonRefreshToken=d.refresh_token;
-    svS();
-    return d.access_token;
+    headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
+    body:JSON.stringify({action:'refresh',refresh_token:S.solakonRefreshToken})
+  },12).then(function(r){return r.json();}).then(function(d){
+    if(d.access_token){
+      S.solakonAccessToken=d.access_token;
+      S.solakonAccessExp=_parseJwtExp(d.access_token)||Date.now()+3500000;
+      if(d.refresh_token)S.solakonRefreshToken=d.refresh_token;
+      svS();
+      return d.access_token;
+    }
+    // Fallback: direct call without anon key (works on some Supabase configs)
+    return fetch(SOLAKON_AUTH_URL+'/token?grant_type=refresh_token',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:S.solakonRefreshToken})
+    }).then(function(r){return r.json();}).then(function(d2){
+      if(!d2.access_token)throw new Error('Token abgelaufen — bitte erneut in Einstellungen eintragen');
+      S.solakonAccessToken=d2.access_token;
+      S.solakonAccessExp=_parseJwtExp(d2.access_token)||Date.now()+3500000;
+      if(d2.refresh_token)S.solakonRefreshToken=d2.refresh_token;
+      svS();
+      return d2.access_token;
+    });
   });
 }
 
@@ -1064,40 +1081,41 @@ function solakonGetToken(){
 }
 
 function fetchSolakon(silent){
-  if(!S.solakonEnabled||!S.solakonRefreshToken){if(!silent)toast('Solakon nicht konfiguriert');return;}
-  if(!solakonKey()){if(!silent)toast('Solakon API-Key fehlt → Einstellungen');return;}
+  if(!S.solakonEnabled||(!S.solakonRefreshToken&&!S.solakonAccessToken)){if(!silent)toast('Solakon nicht konfiguriert');return;}
   solakonGetToken().then(function(token){
-    var sn=S.solakonDeviceId||'60M28010559K434';
-    var hdrs={'apikey':solakonKey(),'Authorization':'Bearer '+token,'Accept':'application/json'};
-    // Try PostgREST table patterns in sequence
-    function tryTable(tbl,filter){
-      return fetch(SOLAKON_REST+'/'+tbl+'?'+filter+'&limit=1&order=created_at.desc',{headers:hdrs})
-        .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
-        .then(function(d){if(!Array.isArray(d)||!d.length)throw new Error('leer');return d[0];});
-    }
-    return tryTable('devices','sn=eq.'+sn)
-      .catch(function(){return tryTable('inverters','sn=eq.'+sn);})
-      .catch(function(){return tryTable('inverters','device_sn=eq.'+sn);})
-      .catch(function(){return tryTable('power_readings','sn=eq.'+sn);})
-      .catch(function(){return tryTable('realtime','device_sn=eq.'+sn);})
-      .catch(function(){
-        // Fallback: list all tables we can see
-        return fetch(SOLAKON_REST+'/',{headers:hdrs}).then(function(r){return r.json();}).then(function(info){
-          console.warn('Solakon: Verfügbare Tabellen:',JSON.stringify(info).slice(0,300));
-          throw new Error('Tabelle nicht gefunden — siehe Konsole');
-        });
-      });
+    // Route through Voltly proxy to avoid CORS on api.app.solakon.de
+    return ftch(VOLTLI_EDGE+'/solakon',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
+      body:JSON.stringify({action:'aggregated',access_token:token})
+    },12).then(function(r){
+      if(r.status===401){S.solakonAccessToken='';S.solakonAccessExp=0;svS();throw new Error('Token abgelaufen — bitte neu eintragen');}
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      return r.json();
+    });
   }).then(function(d){
-    console.log('Solakon raw data:', JSON.stringify(d).slice(0,300));
-    var pvW=parseFloat(d.current_power||d.currentPower||d.power||d.pv_power||d.pvPower||d.ac_power||d.pac||d.p_ac||0);
-    var todayKwh=parseFloat(d.today_energy||d.today||d.daily_energy||d.day_energy||d.e_today||0);
-    var totalKwh=parseFloat(d.total_energy||d.lifetime_energy||d.totalEnergy||d.e_total||0);
+    console.log('Solakon aggregated:', JSON.stringify(d).slice(0,400));
+    // Flexible field parsing — log first to find the right fields
+    var pvW=0,todayKwh=0,totalKwh=0;
+    if(Array.isArray(d)){
+      // Array of inverters: pick matching SN or first
+      var sn=S.solakonDeviceId||'60M28010559K434';
+      var inv=d.find(function(x){return (x.sn||x.serialNumber||x.serial||x.id||'')===sn;})||d[0]||{};
+      d=inv;
+    }
+    // Try common field names for current power
+    pvW=parseFloat(d.currentPower||d.current_power||d.power||d.pac||d.p_ac||d.activePower||d.acPower||
+                   (d.realtime&&(d.realtime.currentPower||d.realtime.power))||0);
+    todayKwh=parseFloat(d.dailyEnergy||d.daily_energy||d.today||d.todayEnergy||d.eDay||
+                        (d.realtime&&d.realtime.dailyEnergy)||0);
+    totalKwh=parseFloat(d.totalEnergy||d.total_energy||d.lifeEnergy||d.eTotalLifetime||
+                        (d.realtime&&d.realtime.totalEnergy)||0);
     solakonLive={pvW:pvW,todayKwh:todayKwh,totalKwh:totalKwh,ts:Date.now()};
     solakonLastFetch=Date.now();
     trackUptime(true);
     if(curTab==='home')patchHome();
     if(curTab==='src')rSrc();
-    if(!silent)toast('Solakon ☀️ '+pvW+'W');
+    if(!silent)toast('Solakon ☀️ '+Math.round(pvW)+'W');
   }).catch(function(e){
     trackUptime(false);
     if(!silent)toast('Solakon: '+e.message);
@@ -1106,18 +1124,16 @@ function fetchSolakon(silent){
 }
 
 function openSolakonSettings(){
-  showAlert('Solakon Wechselrichter',
-    'FoxESS M1 800 via Solakon-App verbinden.',
+  showAlert('Solakon · FoxESS M1 800',
+    'Access-Token aus DevTools (F12 → Netzwerk → Anfrage → Authorization-Header).',
     [{label:'Abbrechen',bold:true,fn:closeAlert},
      {label:'Speichern',fn:function(){
-       var ti=document.getElementById('sk-tok-inp'),di=document.getElementById('sk-dev-inp'),ki=document.getElementById('sk-key-inp');
-       var tok=(ti?ti.value.trim():''),dev=(di?di.value.trim():''),key=(ki?ki.value.trim():'');
-       if(!tok){toast('Refresh-Token erforderlich');return;}
-       if(!key){toast('API-Key erforderlich');return;}
-       S.solakonRefreshToken=tok;
+       var ri=document.getElementById('sk-rt-inp'),ai=document.getElementById('sk-at-inp'),di=document.getElementById('sk-dev-inp');
+       var rt=(ri?ri.value.trim():''),at=(ai?ai.value.trim():''),dev=(di?di.value.trim():'');
+       if(!rt&&!at){toast('Refresh-Token oder Access-Token erforderlich');return;}
+       S.solakonRefreshToken=rt||S.solakonRefreshToken;
        S.solakonDeviceId=dev||'60M28010559K434';
-       S.solakonAnonKey=key;
-       S.solakonAccessToken='';S.solakonAccessExp=0;
+       if(at){S.solakonAccessToken=at;S.solakonAccessExp=_parseJwtExp(at)||Date.now()+3500000;}
        S.solakonEnabled=true;
        svS();closeAlert();
        toast('Solakon gespeichert — verbinde…');
@@ -1134,13 +1150,15 @@ function openSolakonSettings(){
     var msg=document.querySelector('.al-m');if(!msg)return;
     var wr=document.createElement('div');wr.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:12px';
     var stl='padding:10px 14px;border-radius:10px;border:1.5px solid var(--sep2);font-size:13px;font-family:inherit;background:var(--f);color:var(--t);outline:none;width:100%;box-sizing:border-box';
-    var ti=document.createElement('input');ti.id='sk-tok-inp';ti.type='text';ti.value=S.solakonRefreshToken||'';ti.placeholder='Refresh-Token';ti.style.cssText=stl;
-    var di=document.createElement('input');di.id='sk-dev-inp';di.type='text';di.value=S.solakonDeviceId||'60M28010559K434';di.placeholder='Device-ID (Seriennr.)';di.style.cssText=stl;
-    var ki=document.createElement('input');ki.id='sk-key-inp';ki.type='text';ki.value=S.solakonAnonKey||'';ki.placeholder='API-Key (eyJhbGc…)';ki.style.cssText=stl;
+    var ri=document.createElement('input');ri.id='sk-rt-inp';ri.type='text';ri.value=S.solakonRefreshToken||'';ri.placeholder='Refresh-Token (z.B. 3s4xztie6mi6)';ri.style.cssText=stl;
+    var ai=document.createElement('input');ai.id='sk-at-inp';ai.type='text';ai.value='';ai.placeholder='Access-Token (eyJhbGc… aus DevTools)';ai.style.cssText=stl;
+    var di=document.createElement('input');di.id='sk-dev-inp';di.type='text';di.value=S.solakonDeviceId||'60M28010559K434';di.placeholder='Device-ID / Seriennummer';di.style.cssText=stl;
+    var exp=S.solakonAccessExp&&S.solakonAccessExp>Date.now()?Math.round((S.solakonAccessExp-Date.now())/60000)+' min gültig':'abgelaufen';
     var inf=document.createElement('div');
     inf.style.cssText='font-size:11px;color:var(--t3);line-height:1.7;padding:4px 2px';
-    inf.innerHTML='🔑 <b>API-Key finden:</b> app.solakon.de im Browser öffnen → F12 → Netzwerk-Tab → eine beliebige Anfrage → Header <b>apikey</b> kopieren';
-    wr.appendChild(ti);wr.appendChild(di);wr.appendChild(ki);wr.appendChild(inf);msg.appendChild(wr);ki.focus();
+    inf.innerHTML='Status: <b style="color:'+(S.solakonAccessExp>Date.now()?'var(--gr)':'var(--rd)')+'">'+exp+'</b><br>'
+      +'Token holen: app.solakon.de → F12 → Netzwerk → Anfrage → Header <b>Authorization</b> → "Bearer eyJ..." kopieren';
+    wr.appendChild(ri);wr.appendChild(ai);wr.appendChild(di);wr.appendChild(inf);msg.appendChild(wr);ai.focus();
   },50);
 }
 
