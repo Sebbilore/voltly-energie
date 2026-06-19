@@ -1121,15 +1121,28 @@ function fetchSolakon(silent){
   });
 }
 
-function solakonLogin(email,pw,cb){
-  var SOLAKON_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhbnprdXNmb3BzZHNleXR0cXZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDE0MjI1NjIsImV4cCI6MjAxNjk5ODU2Mn0.7DSCHpXmLq2BJMwPvTNyDUc8Y6NkS_ZbOrQhKLbT4MU';
-  fetch(SOLAKON_AUTH_URL+'/token?grant_type=password',{
+var SOLAKON_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhbnprdXNmb3BzZHNleXR0cXZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDE0MjI1NjIsImV4cCI6MjAxNjk5ODU2Mn0.7DSCHpXmLq2BJMwPvTNyDUc8Y6NkS_ZbOrQhKLbT4MU';
+
+function solakonSendOtp(email,cb){
+  fetch(SOLAKON_AUTH_URL+'/otp',{
     method:'POST',
     headers:{'Content-Type':'application/json','apikey':SOLAKON_ANON},
-    body:JSON.stringify({email:email,password:pw})
+    body:JSON.stringify({email:email,create_user:false})
+  }).then(function(r){
+    console.log('[Solakon] OTP senden HTTP',r.status);
+    if(r.status===200||r.status===204){cb(null);return;}
+    return r.json().then(function(d){cb(d.error_description||d.msg||d.error||'Fehler beim Senden');});
+  }).catch(function(e){cb(e.message);});
+}
+
+function solakonVerifyOtp(email,code,cb){
+  fetch(SOLAKON_AUTH_URL+'/verify',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SOLAKON_ANON},
+    body:JSON.stringify({type:'email',email:email,token:code})
   }).then(function(r){return r.json();}).then(function(d){
-    console.log('[Solakon] Login Antwort:',JSON.stringify(d).slice(0,120));
-    if(!d.access_token){cb(null,'Login fehlgeschlagen: '+(d.error_description||d.msg||d.error||'Falsches Passwort'));return;}
+    console.log('[Solakon] OTP verify Antwort:',JSON.stringify(d).slice(0,150));
+    if(!d.access_token){cb(null,d.error_description||d.msg||d.error||'Falscher Code');return;}
     S.solakonAccessToken=d.access_token;
     S.solakonAccessExp=_parseJwtExp(d.access_token)||Date.now()+3500000;
     S.solakonRefreshToken=d.refresh_token||'';
@@ -1142,21 +1155,39 @@ function solakonLogin(email,pw,cb){
 function openSolakonSettings(){
   var exp=S.solakonAccessExp&&S.solakonAccessExp>Date.now()?Math.round((S.solakonAccessExp-Date.now())/60000)+' min gültig':'abgelaufen';
   showAlert('Solakon · FoxESS M1 800',
-    'Mit Solakon-Konto anmelden (Email + Passwort von app.solakon.de).',
+    'E-Mail eingeben, Code anfordern, dann hier eintragen.',
     [{label:'Abbrechen',bold:true,fn:closeAlert},
-     {label:'Anmelden & Speichern',fn:function(){
-       var ei=document.getElementById('sk-em-inp'),pi=document.getElementById('sk-pw-inp'),di=document.getElementById('sk-dev-inp');
-       var em=(ei?ei.value.trim():''),pw=(pi?pi.value.trim():''),dev=(di?di.value.trim():'');
-       if(!em||!pw){toast('E-Mail und Passwort erforderlich');return;}
-       S.solakonDeviceId=dev||'60M28010559K434';
+     {label:'Code senden',fn:function(){
+       var ei=document.getElementById('sk-em-inp'),di=document.getElementById('sk-dev-inp');
+       var em=(ei?ei.value.trim():'');
+       if(!em){toast('E-Mail eingeben');return;}
+       S.solakonDeviceId=(di?di.value.trim():'')||'60M28010559K434';svS();
        var btn=document.querySelector('.al-btn:last-child');if(btn)btn.textContent='…';
-       solakonLogin(em,pw,function(tok,err){
-         if(err){toast('Solakon: '+err);if(btn)btn.textContent='Anmelden & Speichern';return;}
-         closeAlert();
-         toast('Solakon angemeldet ✓');
-         fetchSolakon(false);
-         if(S.autoFetch)schedFetch();
-         rSet();
+       solakonSendOtp(em,function(err){
+         if(err){toast('Solakon: '+err);if(btn)btn.textContent='Code senden';return;}
+         var msg=document.querySelector('.al-m');
+         if(msg){var p=msg.querySelector('p');if(p)p.textContent='Code aus der E-Mail eingeben:';}
+         var otpWr=document.getElementById('sk-otp-wr');if(otpWr)otpWr.style.display='block';
+         var ei2=document.getElementById('sk-em-inp');if(ei2)ei2.disabled=true;
+         var ci=document.getElementById('sk-code-inp');if(ci)ci.focus();
+         if(btn){
+           btn.textContent='Bestätigen';
+           btn.onclick=function(){
+             var ci2=document.getElementById('sk-code-inp');
+             var code=(ci2?ci2.value.trim():'');
+             if(!code){toast('Code eingeben');return;}
+             btn.textContent='…';
+             solakonVerifyOtp(em,code,function(tok,e2){
+               if(e2){toast('Solakon: '+e2);btn.textContent='Bestätigen';return;}
+               closeAlert();
+               toast('Solakon angemeldet ✓');
+               fetchSolakon(false);
+               if(S.autoFetch)schedFetch();
+               rSet();
+             });
+           };
+         }
+         toast('Code wurde an '+em+' gesendet');
        });
      }},
      S.solakonEnabled?{label:'Deaktivieren',danger:true,fn:function(){
@@ -1169,12 +1200,14 @@ function openSolakonSettings(){
     var wr=document.createElement('div');wr.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:12px';
     var stl='padding:10px 14px;border-radius:10px;border:1.5px solid var(--sep2);font-size:13px;font-family:inherit;background:var(--f);color:var(--t);outline:none;width:100%;box-sizing:border-box';
     var ei=document.createElement('input');ei.id='sk-em-inp';ei.type='email';ei.value='lorenzfp@outlook.de';ei.placeholder='E-Mail (Solakon-Konto)';ei.style.cssText=stl;
-    var pi=document.createElement('input');pi.id='sk-pw-inp';pi.type='password';pi.value='';pi.placeholder='Passwort (Solakon)';pi.style.cssText=stl;
     var di=document.createElement('input');di.id='sk-dev-inp';di.type='text';di.value=S.solakonDeviceId||'60M28010559K434';di.placeholder='Device-ID / Seriennummer';di.style.cssText=stl;
+    var otpWr=document.createElement('div');otpWr.id='sk-otp-wr';otpWr.style.display='none';
+    var ci=document.createElement('input');ci.id='sk-code-inp';ci.type='text';ci.inputMode='numeric';ci.placeholder='6-stelliger Code aus E-Mail';ci.style.cssText=stl+';letter-spacing:4px;font-size:18px;text-align:center';
+    otpWr.appendChild(ci);
     var inf=document.createElement('div');
     inf.style.cssText='font-size:11px;color:var(--t3);line-height:1.6;padding:4px 2px';
     inf.innerHTML='Token-Status: <b style="color:'+(S.solakonAccessExp>Date.now()?'var(--gr)':'var(--rd)')+'">'+exp+'</b>';
-    wr.appendChild(ei);wr.appendChild(pi);wr.appendChild(di);wr.appendChild(inf);msg.appendChild(wr);pi.focus();
+    wr.appendChild(ei);wr.appendChild(di);wr.appendChild(otpWr);wr.appendChild(inf);msg.appendChild(wr);ei.focus();
   },50);
 }
 
