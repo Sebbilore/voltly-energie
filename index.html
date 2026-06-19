@@ -2319,8 +2319,8 @@ function rSrc(){
     var skNc=div('grad-card fu2','background:linear-gradient(135deg,#34C759,#1a7a3c);padding:20px;margin-bottom:12px;text-align:center');
     skNc.innerHTML='<div style="font-size:32px;margin-bottom:8px">⚡</div>'
       +'<div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:4px">Solakon · FoxESS M1 800</div>'
-      +(S.solakonAnonKey?'<div style="font-size:13px;color:rgba(255,255,255,.75)">Verbinde…</div>'
-        :'<div style="font-size:13px;color:rgba(255,255,255,.9);font-weight:600">⚠️ API-Key fehlt → Einstellungen</div>');
+      +((S.solakonRefreshToken||S.solakonAccessToken)?'<div style="font-size:13px;color:rgba(255,255,255,.75)">Verbinde…</div>'
+        :'<div style="font-size:13px;color:rgba(255,255,255,.9);font-weight:600">⚠️ Anmeldung nötig → Einstellungen</div>');
     skNc.onclick=function(){openSolakonSettings();};
     f.appendChild(skNc);
   }
@@ -2560,8 +2560,9 @@ function rSet(){
   devCard.appendChild(sepEl());
   // Solakon
   var skRow=div('row','cursor:pointer');
-  var skStatus=S.solakonEnabled&&S.solakonDeviceId?'✅ '+S.solakonDeviceId+(S.solakonAnonKey?'':' — API-Key fehlt!'):'Tippen zum Einrichten';
-  var skColor=S.solakonEnabled&&!S.solakonAnonKey?'var(--rd)':'var(--t3)';
+  var skHasToken=!!(S.solakonRefreshToken||S.solakonAccessToken);
+  var skStatus=S.solakonEnabled&&S.solakonDeviceId?'✅ '+S.solakonDeviceId+(skHasToken?'':' — Anmeldung nötig!'):'Tippen zum Einrichten';
+  var skColor=S.solakonEnabled&&!skHasToken?'var(--rd)':'var(--t3)';
   skRow.innerHTML='<div class="ric" style="background:linear-gradient(135deg,#34C759,#248A3D)">⚡</div>'
     +'<div class="rb"><div class="rl">Solakon (FoxESS M1 800)</div><div class="rs" style="color:'+skColor+'">'+skStatus+'</div></div>'
     +'<span style="color:var(--t3);font-size:20px">›</span>';
