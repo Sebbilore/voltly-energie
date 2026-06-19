@@ -1043,53 +1043,23 @@ function _parseJwtExp(tok){
   try{var p=JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));return p.exp?p.exp*1000:0;}catch(e){return 0;}
 }
 
-function solakonRefreshAccess(){
-  if(!S.solakonRefreshToken)return Promise.reject(new Error('Kein Refresh-Token'));
-  console.log('[Solakon] Refresh via Proxy, RT:',S.solakonRefreshToken.slice(0,6)+'…');
+// Server (Voltly Edge Function) verwaltet die Solakon-Session zentral — verhindert
+// dass mehrere Clients den Single-Use-Refresh-Token gegenseitig verbrauchen.
+function solakonGetToken(){
+  console.log('[Solakon] Hole Access-Token vom Server…');
   return ftch(VOLTLI_EDGE+'/solakon',{
     method:'POST',
     headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
-    body:JSON.stringify({action:'refresh',refresh_token:S.solakonRefreshToken})
+    body:JSON.stringify({action:'get_token'})
   },12).then(function(r){return r.json();}).then(function(d){
-    console.log('[Solakon] Proxy-Refresh Antwort:',JSON.stringify(d).slice(0,120));
-    if(d.access_token){
-      S.solakonAccessToken=d.access_token;
-      S.solakonAccessExp=_parseJwtExp(d.access_token)||Date.now()+3500000;
-      if(d.refresh_token)S.solakonRefreshToken=d.refresh_token;
-      svS();
-      console.log('[Solakon] Proxy-Refresh OK, AT exp:',new Date(S.solakonAccessExp).toLocaleTimeString());
-      return d.access_token;
-    }
-    console.warn('[Solakon] Proxy-Refresh kein access_token, versuche direkten Fallback…');
-    var SOLAKON_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhbnprdXNmb3BzZHNleXR0cXZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDE0MjI1NjIsImV4cCI6MjAxNjk5ODU2Mn0.7DSCHpXmLq2BJMwPvTNyDUc8Y6NkS_ZbOrQhKLbT4MU';
-    return fetch(SOLAKON_AUTH_URL+'/token?grant_type=refresh_token',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SOLAKON_ANON},
-      body:JSON.stringify({refresh_token:S.solakonRefreshToken})
-    }).then(function(r){return r.json();}).then(function(d2){
-      console.log('[Solakon] Direkt-Refresh Antwort:',JSON.stringify(d2).slice(0,120));
-      if(!d2.access_token)throw new Error('Token abgelaufen — bitte erneut in Einstellungen eintragen');
-      S.solakonAccessToken=d2.access_token;
-      S.solakonAccessExp=_parseJwtExp(d2.access_token)||Date.now()+3500000;
-      if(d2.refresh_token)S.solakonRefreshToken=d2.refresh_token;
-      svS();
-      console.log('[Solakon] Direkt-Refresh OK, AT exp:',new Date(S.solakonAccessExp).toLocaleTimeString());
-      return d2.access_token;
-    });
+    console.log('[Solakon] Server-Token Antwort:',JSON.stringify(d).slice(0,120));
+    if(!d.access_token)throw new Error('Server-Session: '+(d.error||'kein Token'));
+    return d.access_token;
   });
 }
 
-function solakonGetToken(){
-  if(S.solakonAccessToken&&S.solakonAccessExp&&Date.now()<S.solakonAccessExp){
-    console.log('[Solakon] Access-Token noch gültig bis',new Date(S.solakonAccessExp).toLocaleTimeString());
-    return Promise.resolve(S.solakonAccessToken);
-  }
-  console.log('[Solakon] Access-Token abgelaufen/fehlt → Refresh…');
-  return solakonRefreshAccess();
-}
-
 function fetchSolakon(silent){
-  if(!S.solakonEnabled||(!S.solakonRefreshToken&&!S.solakonAccessToken)){if(!silent)toast('Solakon nicht konfiguriert');return;}
+  if(!S.solakonEnabled){if(!silent)toast('Solakon nicht konfiguriert');return;}
   solakonGetToken().then(function(token){
     var sn=S.solakonDeviceId||'60M28010559K434';
     console.log('[Solakon] Lade Daten für',sn,'AT:…'+token.slice(-8));
@@ -1097,7 +1067,6 @@ function fetchSolakon(silent){
       headers:{'Authorization':'Bearer '+token,'Accept':'*/*','x-app-version':'1.102.10'}
     }).then(function(r){
       console.log('[Solakon] Daten-Response HTTP',r.status);
-      if(r.status===401){S.solakonAccessToken='';S.solakonAccessExp=0;svS();throw new Error('Token abgelaufen');}
       if(!r.ok)throw new Error('HTTP '+r.status);
       return r.json();
     });
@@ -1122,24 +1091,29 @@ function fetchSolakon(silent){
 }
 
 function openSolakonSettings(){
-  var exp=S.solakonAccessExp&&S.solakonAccessExp>Date.now()?Math.round((S.solakonAccessExp-Date.now())/60000)+' min gültig':'abgelaufen';
   showAlert('Solakon · FoxESS M1 800',
-    'Access-Token aus DevTools (F12 → Netzwerk → Anfrage an api.app.solakon.de → Header "Authorization" → "Bearer ..." kopieren, ohne "Bearer ").',
+    'Einmalig Refresh-Token aus DevTools eintragen — der Server hält die Session danach automatisch aktuell.',
     [{label:'Abbrechen',bold:true,fn:closeAlert},
      {label:'Speichern',fn:function(){
-       var ai=document.getElementById('sk-at-inp'),di=document.getElementById('sk-dev-inp');
-       var at=(ai?ai.value.trim():''),dev=(di?di.value.trim():'');
-       if(!at){toast('Access-Token erforderlich');return;}
-       at=at.replace(/^Bearer\s+/i,'');
-       S.solakonDeviceId=dev||'60M28010559K434';
-       S.solakonAccessToken=at;
-       S.solakonAccessExp=_parseJwtExp(at)||Date.now()+3500000;
-       S.solakonEnabled=true;
-       svS();closeAlert();
-       toast('Solakon gespeichert — verbinde…');
-       fetchSolakon(false);
-       if(S.autoFetch)schedFetch();
-       rSet();
+       var ri=document.getElementById('sk-rt-inp'),di=document.getElementById('sk-dev-inp');
+       var rt=(ri?ri.value.trim():''),dev=(di?di.value.trim():'');
+       if(!rt){toast('Refresh-Token erforderlich');return;}
+       S.solakonDeviceId=dev||'60M28010559K434';svS();
+       var btn=this;btn.textContent='…';
+       ftch(VOLTLI_EDGE+'/solakon',{
+         method:'POST',
+         headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
+         body:JSON.stringify({action:'seed',refresh_token:rt})
+       },12).then(function(r){return r.json();}).then(function(d){
+         console.log('[Solakon] Seed Antwort:',JSON.stringify(d).slice(0,120));
+         if(!d.ok){toast('Solakon: '+(d.error||'Seed fehlgeschlagen'));btn.textContent='Speichern';return;}
+         S.solakonEnabled=true;svS();
+         closeAlert();
+         toast('Solakon-Session gespeichert ✓');
+         fetchSolakon(false);
+         if(S.autoFetch)schedFetch();
+         rSet();
+       }).catch(function(e){toast('Solakon: '+e.message);btn.textContent='Speichern';});
      }},
      S.solakonEnabled?{label:'Deaktivieren',danger:true,fn:function(){
        S.solakonEnabled=false;solakonLive=null;svS();closeAlert();rSet();toast('Solakon deaktiviert');
@@ -1150,13 +1124,13 @@ function openSolakonSettings(){
     var msg=document.querySelector('.al-m');if(!msg)return;
     var wr=document.createElement('div');wr.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:12px';
     var stl='padding:10px 14px;border-radius:10px;border:1.5px solid var(--sep2);font-size:13px;font-family:inherit;background:var(--f);color:var(--t);outline:none;width:100%;box-sizing:border-box';
-    var ai=document.createElement('input');ai.id='sk-at-inp';ai.type='text';ai.value='';ai.placeholder='Access-Token (eyJhbGc…)';ai.style.cssText=stl;
+    var ri=document.createElement('input');ri.id='sk-rt-inp';ri.type='text';ri.value='';ri.placeholder='Refresh-Token (z.B. p5r5bm…)';ri.style.cssText=stl;
     var di=document.createElement('input');di.id='sk-dev-inp';di.type='text';di.value=S.solakonDeviceId||'60M28010559K434';di.placeholder='Device-ID / Seriennummer';di.style.cssText=stl;
     var inf=document.createElement('div');
     inf.style.cssText='font-size:11px;color:var(--t3);line-height:1.6;padding:4px 2px';
-    inf.innerHTML='Token-Status: <b style="color:'+(S.solakonAccessExp>Date.now()?'var(--gr)':'var(--rd)')+'">'+exp+'</b><br>'
-      +'1. app.solakon.de im Browser öffnen, einloggen<br>2. F12 → Netzwerk → "aggregated" anklicken<br>3. Header "Authorization" → Wert nach "Bearer " kopieren';
-    wr.appendChild(ai);wr.appendChild(di);wr.appendChild(inf);msg.appendChild(wr);ai.focus();
+    inf.innerHTML='Status: <b style="color:'+(S.solakonEnabled?'var(--gr)':'var(--rd)')+'">'+(S.solakonEnabled?'Server-Session aktiv':'nicht eingerichtet')+'</b><br>'
+      +'1. app.solakon.de im Browser öffnen, neu einloggen<br>2. F12 → Anwendung/Application → Local Storage → "CapacitorStorage.sb-db-auth-token"<br>3. Feld <b>refresh_token</b> kopieren (NICHT access_token)';
+    wr.appendChild(ri);wr.appendChild(di);wr.appendChild(inf);msg.appendChild(wr);ri.focus();
   },50);
 }
 
