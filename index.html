@@ -1162,7 +1162,7 @@ function openSolakonSettings(){
        var em=(ei?ei.value.trim():'');
        if(!em){toast('E-Mail eingeben');return;}
        S.solakonDeviceId=(di?di.value.trim():'')||'60M28010559K434';svS();
-       var btn=document.querySelector('.al-btn:last-child');if(btn)btn.textContent='…';
+       var btn=this;btn.textContent='…';
        solakonSendOtp(em,function(err){
          if(err){toast('Solakon: '+err);if(btn)btn.textContent='Code senden';return;}
          var msg=document.querySelector('.al-m');
