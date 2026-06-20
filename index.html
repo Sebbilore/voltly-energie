@@ -934,11 +934,37 @@ function schedFetch(){
   if(S.marstekToken){fetchMarstek(true);fetchCT002Local(true);}
   if(S.foxessEnabled&&S.foxessApiKey&&S.foxessDeviceSn)fetchFoxESS(true);
   if(S.solakonEnabled&&S.solakonRefreshToken)fetchSolakon(true);
+  fetchPiBridge();
   fi=setInterval(function(){
     if(S.marstekToken){fetchMarstek(true);fetchCT002Local(true);}
     if(S.foxessEnabled&&S.foxessApiKey&&S.foxessDeviceSn)fetchFoxESS(true);
     if(S.solakonEnabled&&S.solakonRefreshToken)fetchSolakon(true);
+    fetchPiBridge();
   },(S.fetchSec||5)*1000);
+}
+
+/* ── Pi-Bridge (Wallbox/PowerRouter/CT002 via Raspberry Pi) ──
+   Liest pi_bridge_live aus Supabase (read-only, RLS erlaubt SELECT für alle).
+   Der Pi pusht die Werte per Edge-Function /pibridge — siehe voltly-pi-bridge/. */
+var PI_BRIDGE_STALE_MS=90000; // Pi pollt alle ~20s, großzügiger Puffer
+var piBridgeLive={wallbox:null,powerrouter:null,ct002pi:null};
+function piBridgeIsStale(dev){
+  var d=piBridgeLive[dev];
+  return !d||!d._ts||(Date.now()-d._ts>PI_BRIDGE_STALE_MS);
+}
+function fetchPiBridge(){
+  fetch('https://yhvosmgioggkgimqnmqp.supabase.co/rest/v1/pi_bridge_live?select=device,data,updated_at',{
+    headers:{'apikey':VOLTLI_KEY,'Authorization':'Bearer '+VOLTLI_KEY}
+  }).then(function(r){return r.json();}).then(function(rows){
+    if(!Array.isArray(rows))return;
+    rows.forEach(function(row){
+      var key=row.device==='ct002'?'ct002pi':row.device;
+      if(!(key in piBridgeLive))return;
+      piBridgeLive[key]=Object.assign({},row.data,{_ts:new Date(row.updated_at).getTime()});
+    });
+    if(curTab==='home')patchHome();
+    if(curTab==='src')rSrc();
+  }).catch(function(e){console.error('[PiBridge] Fehler:',e.message);});
 }
 
 /* ── FoxESS MD5 (minimal, RFC1321) ── */
