@@ -1351,6 +1351,28 @@ function rSetGuest(){
   var stb=el('stb');stb.innerHTML='';stb.appendChild(f);
 }
 
+function openPiBridgeSettings(){
+  var devs=[['wallbox','⚡ Wallbox (Heidelberg)'],['powerrouter','☀️ PowerRouter (nedap PR37S)'],['ct002pi','🔌 CT002 (über Pi)']];
+  var lines=devs.map(function(d){
+    var stale=piBridgeIsStale(d[0]);
+    var data=piBridgeLive[d[0]];
+    var age=data&&data._ts?Math.round((Date.now()-data._ts)/1000)+'s her':'nie';
+    return (stale?'⚠️ ':'✅ ')+d[1]+' — '+(data?'zuletzt '+age:'keine Daten');
+  }).join('<br>');
+  showAlert('Raspberry Pi Bridge',
+    'Der Pi pollt Wallbox/PowerRouter/CT002 lokal und schickt die Werte an Voltly. Setup-Anleitung: voltly-pi-bridge/README.md',
+    [{label:'Schließen',bold:true,fn:closeAlert},
+     {label:'Aktualisieren',fn:function(){fetchPiBridge();closeAlert();toast('Pi-Bridge aktualisiert');}}
+    ]
+  );
+  setTimeout(function(){
+    var msg=document.querySelector('.al-m');if(!msg)return;
+    var wr=document.createElement('div');wr.style.cssText='font-size:13px;color:var(--t2);line-height:1.8;margin-top:12px;text-align:left';
+    wr.innerHTML=lines;
+    msg.appendChild(wr);
+  },50);
+}
+
 function openFoxESSSettings(){
   showAlert('FoxESS Wechselrichter',
     'API-Key und Seriennummer aus der FoxESS-App (Einstellungen → Konto → API-Key).',
@@ -2498,15 +2520,6 @@ function rSet(){
   // Marstek
   devCard.appendChild(makeRow('🔋','var(--blb)','Marstek Akku',con?'✅ '+(S.marstekDeviceName||S.marstekEmail):'Tippen zum Anmelden',null,null,true,function(){if(con)loadDevices();else showOv('ml');}));
   devCard.appendChild(sepEl());
-  // FoxESS
-  var fxRow=div('row','cursor:pointer');
-  var fxStatus=S.foxessEnabled&&S.foxessDeviceSn?'✅ '+S.foxessDeviceSn:'Tippen zum Einrichten';
-  fxRow.innerHTML='<div class="ric" style="background:linear-gradient(135deg,#f5a623,#e8870a)">☀️</div>'
-    +'<div class="rb"><div class="rl">FoxESS Wechselrichter</div><div class="rs">'+fxStatus+'</div></div>'
-    +'<span style="color:var(--t3);font-size:20px">›</span>';
-  fxRow.onclick=function(){openFoxESSSettings();};
-  devCard.appendChild(fxRow);
-  devCard.appendChild(sepEl());
   // Solakon
   var skRow=div('row','cursor:pointer');
   var skHasToken=!!(S.solakonRefreshToken||S.solakonAccessToken);
@@ -2517,6 +2530,17 @@ function rSet(){
     +'<span style="color:var(--t3);font-size:20px">›</span>';
   skRow.onclick=function(){openSolakonSettings();};
   devCard.appendChild(skRow);
+  devCard.appendChild(sepEl());
+  // Raspberry Pi Bridge (Wallbox/PowerRouter/CT002)
+  var piRow=div('row','cursor:pointer');
+  var piOk=['wallbox','powerrouter','ct002pi'].filter(function(k){return !piBridgeIsStale(k);}).length;
+  var piStatus=piOk>0?'✅ '+piOk+' Gerät(e) aktiv':'Noch keine Daten — Pi einrichten';
+  var piColor=piOk>0?'var(--t3)':'var(--or)';
+  piRow.innerHTML='<div class="ric" style="background:linear-gradient(135deg,#8E8E93,#48484A)">🖥️</div>'
+    +'<div class="rb"><div class="rl">Raspberry Pi Bridge</div><div class="rs" style="color:'+piColor+'">'+piStatus+'</div></div>'
+    +'<span style="color:var(--t3);font-size:20px">›</span>';
+  piRow.onclick=function(){openPiBridgeSettings();};
+  devCard.appendChild(piRow);
   f.appendChild(devCard);
 
   addSH(f,'Darstellung','fu2');
