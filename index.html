@@ -537,7 +537,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-20 21:29';
+var APP_VERSION='v1.0 - 2026-06-20 21:35';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -612,7 +612,32 @@ function fM(k) { try { return new Date(k+'-01').toLocaleDateString('de-DE',{mont
 function ldE() { try { return JSON.parse(localStorage.getItem(EK)||'[]'); } catch(e) { return []; } }
 function svE() { localStorage.setItem(EK, JSON.stringify(E)); }
 function ldS() { try { return Object.assign({},DEF,JSON.parse(localStorage.getItem(SK)||'{}')); } catch(e) { return Object.assign({},DEF); } }
-function svS() { localStorage.setItem(SK, JSON.stringify(S)); CLOUD.saveSettings(S); }
+var _stSaveT=0;
+function svS() {
+  localStorage.setItem(SK, JSON.stringify(S));
+  CLOUD.saveSettings(S);
+  // Zusätzlich nach Supabase sichern — funktioniert unabhängig vom Login-Modus (auch "lokal" ohne Passwort),
+  // genau wie die Gastzugänge, damit Einstellungen Browser-Daten-Löschungen/Geräte-Wechsel überleben
+  clearTimeout(_stSaveT);
+  _stSaveT=setTimeout(function(){
+    if(!currentUser||!currentUser.email||currentUser.email==='Nutzer')return;
+    fetch(VOLTLI_EDGE+'/usersettings',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
+      body:JSON.stringify({action:'save',email:currentUser.email,settings:S})
+    }).catch(function(e){console.error('[Settings] Cloud-Save Fehler:',e.message);});
+  },800);
+}
+function restoreSettingsSb(email,cb){
+  if(!email||email==='Nutzer'){if(cb)cb(null);return;}
+  fetch(VOLTLI_EDGE+'/usersettings',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
+    body:JSON.stringify({action:'load',email:email})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(cb)cb(d&&d.settings?d.settings:null);
+  }).catch(function(e){console.error('[Settings] Cloud-Load Fehler:',e.message);if(cb)cb(null);});
+}
 var _accSaveT=0;
 function svAcc() {
   localStorage.setItem('vt3acc', JSON.stringify(acc));
@@ -709,6 +734,15 @@ function doSignIn() {
   if (!pass) {
     currentUser = { email: email||'Nutzer', id: 'local' };
     bootApp(false);
+    restoreSettingsSb(currentUser.email,function(cloudS){
+      if(cloudS){
+        S=Object.assign({},DEF,S,cloudS);
+        localStorage.setItem(SK,JSON.stringify(S));
+        applyTheme(S.darkMode||'auto');
+        schedFetch();
+        if(curTab==='home')rHome();if(curTab==='src')rSrc();if(curTab==='set')rSet();
+      }
+    });
     return;
   }
 
@@ -723,6 +757,10 @@ function doSignIn() {
     Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
       var cloudS=results[0], cloudAcc=results[1], rows=results[2];
       if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch(); }
+      else restoreSettingsSb(email,function(sbS){
+        if(sbS){ S=Object.assign({},DEF,S,sbS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch();
+          if(curTab==='home')rHome();if(curTab==='src')rSrc();if(curTab==='set')rSet(); }
+      });
       if(cloudAcc && cloudAcc.date===today()){ acc=Object.assign({eigen:0,haus:0,solar:0,bat:0,grid:0,t:0},cloudAcc); }
       var localE=ldE();
       if(rows && rows.length >= localE.length){ E=rows; svE(); }
@@ -3208,6 +3246,10 @@ function renderWeather(cont,d){
         Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
           var cloudS=results[0], cloudAcc=results[1], rows=results[2];
           if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch(); }
+          else restoreSettingsSb(user.email,function(sbS){
+            if(sbS){ S=Object.assign({},DEF,S,sbS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch();
+              if(curTab==='home')rHome();if(curTab==='src')rSrc();if(curTab==='set')rSet(); }
+          });
           if(cloudAcc && cloudAcc.date===today()){ acc=Object.assign({eigen:0,haus:0,solar:0,bat:0,grid:0,t:0},cloudAcc); }
           var localE=ldE();
           if(rows && rows.length >= localE.length){ E=rows; svE(); }
