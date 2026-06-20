@@ -552,7 +552,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-20 21:48';
+var APP_VERSION='v1.0 - 2026-06-20 21:51';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -2513,7 +2513,10 @@ function rSrc(){
   }
 
   // SOC 24h Verlauf
-  var _soc24pts=(function(){var n=Date.now();return hourlyH.filter(function(h){return h.ts>=n-86400000;});}());
+  var _soc24pts=(function(){var n=Date.now();var pts=hourlyH.filter(function(h){return h.ts>=n-86400000;});
+    // Direkt nach Reset/Erststart nur 1 Punkt vorhanden — zweiten synthetisch ergänzen, damit sofort eine Linie sichtbar ist
+    if(pts.length===1)pts=[pts[0],Object.assign({},pts[0],{ts:n})];
+    return pts;}());
   if(_soc24pts.length>=2){
     var soc24cc=div('cc fu3');
     soc24cc.innerHTML='<div style="font-size:15px;font-weight:600;margin-bottom:10px">🔋 Ladestand — Letzte 24h</div>';
