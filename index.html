@@ -1166,9 +1166,11 @@ function patchHome(){
   if(!hcard||!flowEl){rHome();return;}
   var _pfx=S.foxessEnabled&&!foxessIsStale();
   var _skx=S.solakonEnabled&&solakonLive&&!solakonIsStale();
+  var _prx=!piBridgeIsStale('powerrouter');
+  var prW=_prx?parseFloat(piBridgeLive.powerrouter.power_w||piBridgeLive.powerrouter.pv_w||piBridgeLive.powerrouter.acPower||piBridgeLive.powerrouter.ac_power||0):0;
   // Jedes Gerät nur seine eigenen Messwerte — kein Fallback zwischen Geräten
   var lv_soc=_pfx?foxessLive.soc:(lv?lv.battery&&lv.battery.soc||0:0);
-  var chargeW=_pfx?foxessLive.pvW:(_skx?solakonLive.pvW:0); // Solar: FoxESS oder Solakon
+  var chargeW=_pfx?foxessLive.pvW:(_skx?solakonLive.pvW:(_prx?prW:0)); // Solar: FoxESS, Solakon oder PowerRouter
   var dischargeW=_pfx?foxessLive.batDischargeW:(lv?lv.battery&&lv.battery.dischargeW||0:0); // Akku: FoxESS oder Marstek (selber Akku)
   var bChWp=_pfx?foxessLive.batChargeW:0;    // Akku-Laden (AC): nur FoxESS kennt das
   var isSolar=chargeW>10;var isBatCharging=bChWp>10;
@@ -2294,6 +2296,62 @@ function rSrc(){
         :'<div style="font-size:13px;color:rgba(255,255,255,.9);font-weight:600">⚠️ Anmeldung nötig → Einstellungen</div>');
     skNc.onclick=function(){openSolakonSettings();};
     f.appendChild(skNc);
+  }
+
+  // PowerRouter Banner (nedap PR37S via Pi)
+  if(!piBridgeIsStale('powerrouter')){
+    var pr=piBridgeLive.powerrouter;
+    var prW=parseFloat(pr.power_w||pr.pv_w||pr.acPower||pr.ac_power||0);
+    var prBanner=div('grad-card fu2','background:linear-gradient(135deg,#3DCC4A,#1f7a28);padding:20px;margin-bottom:12px');
+    var prTop=div('','display:flex;align-items:center;justify-content:space-between;margin-bottom:12px');
+    var prInfo=div('');
+    prInfo.innerHTML='<div style="font-size:13px;opacity:.7;margin-bottom:4px">nedap PowerRouter PR37S</div>'
+      +'<div style="font-size:36px;font-weight:800;color:#fff;line-height:1">'+Math.round(prW)+'<span style="font-size:16px;font-weight:400;margin-left:4px">W</span></div>'
+      +'<div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px">Solarleistung aktuell (via Pi)</div>';
+    prTop.appendChild(prInfo);
+    var prIcon=div('','font-size:48px;opacity:.6');prIcon.textContent='☀️';prTop.appendChild(prIcon);
+    prBanner.appendChild(prTop);
+    f.appendChild(prBanner);
+  } else if(piBridgeLive.powerrouter){
+    var prNc=div('grad-card fu2','background:linear-gradient(135deg,#3DCC4A,#1f7a28);padding:20px;margin-bottom:12px;text-align:center');
+    prNc.innerHTML='<div style="font-size:32px;margin-bottom:8px">☀️</div><div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:4px">nedap PowerRouter</div><div style="font-size:13px;color:rgba(255,255,255,.75)">⚠️ Veraltete Daten — Pi prüfen</div>';
+    f.appendChild(prNc);
+  }
+
+  // Wallbox Card (Heidelberg Energy Control via Pi)
+  if(!piBridgeIsStale('wallbox')){
+    var wb=piBridgeLive.wallbox;
+    var wbStateMap={2:'Kein Fahrzeug',3:'Fahrzeug erkannt',4:'Lädt',5:'Wallbox gesperrt',6:'Lädt (Lüftung)',7:'Fahrzeug+Lüftung',8:'Fehler (Laden)',9:'Fehler',10:'Lädt',11:'Entlädt'};
+    var wbState=wbStateMap[wb.charging_state]||('Status '+wb.charging_state);
+    var wbCard=div('card fu1','margin-bottom:12px');
+    var wbHd=div('','font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:14px 16px 0');wbHd.textContent='🔌 Wallbox (Heidelberg)';wbCard.appendChild(wbHd);
+    var wbRow=div('','display:flex;align-items:center;justify-content:space-between;padding:10px 16px 14px');
+    wbRow.innerHTML='<div><div style="font-size:24px;font-weight:700;color:var(--t)">'+Math.round(wb.power_w||0)+'<span style="font-size:13px;font-weight:500;opacity:.65"> W</span></div>'
+      +'<div style="font-size:12px;color:var(--t3);margin-top:2px">'+wbState+'</div></div>'
+      +'<div style="font-size:11px;color:var(--t4);text-align:right">'+(wb.temp_c!=null?wb.temp_c.toFixed(1)+'°C':'')+'</div>';
+    wbCard.appendChild(wbRow);
+    f.appendChild(wbCard);
+  }
+
+  // CT002 via Pi (Fallback/Alternative zum lokalen CT002, von überall abrufbar)
+  if(!piBridgeIsStale('ct002pi')&&!(ct002Local&&ct002Local.status==='ok')){
+    var ctp=piBridgeLive.ct002pi;
+    var ctpCard=div('card fu1','margin-bottom:12px');
+    var ctpHd=div('','font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:14px 16px 0');ctpHd.textContent='⚡ CT002 (via Pi, remote)';ctpCard.appendChild(ctpHd);
+    var ctpGrid=div('','display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:12px 14px');
+    [['Gesamt',ctp.gesamt_w,'var(--or)','var(--orb)'],
+     ['L1',ctp.L1_w,'var(--bl)','var(--blb)'],
+     ['L2',ctp.L2_w,'var(--gr)','var(--grb)'],
+     ['L3',ctp.L3_w,'var(--pu)','var(--pub)']
+    ].forEach(function(s){
+      var t=div('','background:'+s[3]+';border-radius:12px;padding:10px 8px;text-align:center');
+      var v=s[1]||0;
+      t.innerHTML='<div style="font-size:13px;font-weight:700;color:'+s[2]+';letter-spacing:-.3px">'+Math.round(v)+'<span style="font-size:10px;opacity:.7"> W</span></div>'
+        +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+s[0]+'</div>';
+      ctpGrid.appendChild(t);
+    });
+    ctpCard.appendChild(ctpGrid);
+    f.appendChild(ctpCard);
   }
 
   // SOC 24h Verlauf
