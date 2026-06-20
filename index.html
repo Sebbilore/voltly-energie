@@ -538,7 +538,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-20 20:54';
+var APP_VERSION='v1.0 - 2026-06-20 20:57';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1526,6 +1526,7 @@ function setSrc(s){S.activeSrc=s;svS();rHome();}
 function openCo(){el('co-p').value=S.strompreis;el('co-e').value=S.einspeise;el('co-c').value=S.currency||'EUR';showOv('co');}
 
 /* ── Chart helper ── */
+var mkChQuiet=false;
 function mkCH(id,type,labels,datasets,extra){
   if(CH[id]){CH[id].destroy();delete CH[id];}
   var ctx=el(id);if(!ctx)return;
@@ -1538,7 +1539,7 @@ function mkCH(id,type,labels,datasets,extra){
       zoom:{zoom:{wheel:{enabled:false},pinch:{enabled:false},mode:'x'},pan:{enabled:true,mode:'x'}}
     },
     scales:{x:{grid:{display:false},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}}},
-    animation:{duration:460,easing:'easeInOutQuart'}};
+    animation:mkChQuiet?false:{duration:460,easing:'easeInOutQuart'}};
   if(extra)Object.assign(opts,extra);
   CH[id]=new Chart(ctx,{type:type,data:{labels:labels,datasets:datasets},options:opts});
   ctx.ondblclick=function(){if(CH[id])CH[id].resetZoom();};
@@ -2132,8 +2133,13 @@ function rHome(){
 /* ══════ RENDER SOURCES ══════ */
 function rSrcQuiet(){
   document.documentElement.classList.add('noanim');
+  mkChQuiet=true;
   rSrc();
-  requestAnimationFrame(function(){requestAnimationFrame(function(){document.documentElement.classList.remove('noanim');});});
+  // rSrc() erstellt Charts teils verzögert via setTimeout(...,0) — Flag erst danach zurücksetzen
+  setTimeout(function(){
+    mkChQuiet=false;
+    document.documentElement.classList.remove('noanim');
+  },80);
 }
 function rSrc(){
   var entries=ae(),lv=al();
