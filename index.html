@@ -552,7 +552,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-20 22:06';
+var APP_VERSION='v1.0 - 2026-06-21 00:14';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -946,9 +946,10 @@ function fetchMarstek(silent) {
       var cap=parseFloat(vDev.bat_cap||vDev.capacity||5000);
       var profit=parseFloat(vDev.profit||0);
       // Marstek läuft immer — echte Messwerte: Akku-Entladung + Netzbezug.
-      // Solar: FoxESS/Solakon + PowerRouter (addiert); Haus: CT002 gemessen wenn verfügbar, sonst Formel
+      // Solar: FoxESS/Solakon + PowerRouter (addiert); Netzbezug: CT002 bevorzugt vor Marstek-Cloud-Wert
       var _accSolW=combinedSolarW();
-      updateAcc(_accSolW,dischargeW,loadW,measuredHausW(Math.max(0,_accSolW+dischargeW+Math.max(0,loadW))));
+      var _accGrid=ctGridW();if(_accGrid==null)_accGrid=loadW;
+      updateAcc(_accSolW,dischargeW,loadW,houseBalanceW(_accSolW,dischargeW,0,_accGrid,true));
       checkNotifications(soc,0);
       trackUptime(true);checkAnomalie();checkMorgenBriefing();checkTagesrekord();
       var hs={ts:Date.now(),chargeW:chargeW,dischargeW:dischargeW,loadW:loadW,soc:soc};
@@ -1034,11 +1035,17 @@ function combinedSolarW(){
   }
   return foxOrSolakon+prW;
 }
-// Hausverbrauch: CT002 misst das real (Phasensumme) — wird bevorzugt statt der Formel-Schätzung.
-function measuredHausW(fallbackW){
+// CT002 (Hauptzähler-Klemme) misst den Netzbezug direkt — nicht den Hausverbrauch.
+function ctGridW(){
   if(ct002Local&&ct002Local.status==='ok')return ct002Local.gesamt_w;
   if(!piBridgeIsStale('ct002pi'))return piBridgeLive.ct002pi.gesamt_w;
-  return fallbackW;
+  return null;
+}
+// Hausverbrauch = Solar + Akku-Entladung - Akku-Ladung + Netzbezug — nur wenn der Netzbezug
+// eine echte Messung ist (CT002 oder FoxESS-eigene Messung). Keine Schätzung — sonst lieber null.
+function houseBalanceW(solarW,dischargeW,chargeW,gridW,hasRealGrid){
+  if(!hasRealGrid)return null;
+  return Math.max(0,Math.round(solarW+dischargeW-chargeW+Math.max(0,gridW)));
 }
 
 /* ── FoxESS MD5 (minimal, RFC1321) ── */
@@ -1116,10 +1123,11 @@ function doFetchFoxESS(silent){
     // Merge into live data model so patchHome/rSrc work
     if(!live)live={};
     live.foxess=foxessLive;
-    // Update acc — Solar: FoxESS + PowerRouter addiert; Haus: CT002 gemessen wenn verfügbar, sonst Formel
+    // Update acc — Solar: FoxESS + PowerRouter addiert; Netzbezug: CT002 bevorzugt vor FoxESS-eigenem Wert
     var loadW=foxessLive.gridW-foxessLive.feedinW;
     var _accSolW2=combinedSolarW();
-    updateAcc(_accSolW2,foxessLive.batDischargeW,loadW,measuredHausW(_accSolW2+foxessLive.batDischargeW-foxessLive.batChargeW+Math.max(0,loadW)));
+    var _accGrid2=ctGridW();if(_accGrid2==null)_accGrid2=loadW;
+    updateAcc(_accSolW2,foxessLive.batDischargeW,loadW,houseBalanceW(_accSolW2,foxessLive.batDischargeW,foxessLive.batChargeW,_accGrid2,true));
     trackUptime(true);
     lastFetch=foxessLastFetch;
     if(!silent){if(curTab==='home')rHome();if(curTab==='src')rSrc();}
@@ -1270,13 +1278,14 @@ function patchHome(){
   // Update SOC ring
   var socRingEl=hcard.querySelector('svg');
   if(socRingEl){var tmp=div('');tmp.innerHTML=socRing(lv_soc,96,onGrad).outerHTML||'';var newSvg=socRing(lv_soc,96,onGrad);var oldSvg=hcard.querySelector('svg');if(oldSvg)oldSvg.parentNode.replaceChild(newSvg.querySelector?newSvg:newSvg,oldSvg);}
-  // Update flow SVG — Solar: FoxESS/Solakon + PowerRouter addiert; Haus: CT002 gemessen wenn verfügbar
+  // Update flow SVG — Solar: FoxESS/Solakon + PowerRouter addiert; Netzbezug: CT002 bevorzugt
   var fw=combinedSolarW();
   var dw=_pfx?foxessLive.batDischargeW:(lv&&lv.battery&&lv.battery.dischargeW||0);
   var bChW=_pfx?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
-  var lw=_pfx?(foxessLive.gridW-foxessLive.feedinW):(lv&&lv.venus&&lv.venus.load||0);
-  var hausW=measuredHausW(_pfx?Math.max(0,fw+dw-bChW+Math.max(0,lw))
-               :(bChW>0?0:Math.max(0,Math.round(dw>=2500?Math.max(2500,dw+Math.max(0,lw)):dw+Math.max(0,lw)))));
+  var _cg=ctGridW();
+  var lw=_cg!=null?_cg:(_pfx?(foxessLive.gridW-foxessLive.feedinW):(lv&&lv.venus&&lv.venus.load||0));
+  var hasRealGrid=_cg!=null||_pfx||!!lv;
+  var hausW=houseBalanceW(fw,dw,bChW,lw,hasRealGrid);
   var netExport=lw<0;
   var W=320,H=185,R=22;
   var nSol={x:160,y:48},nNet={x:40,y:130},nAku={x:280,y:130},nHaus={x:160,y:130};
@@ -1292,7 +1301,7 @@ function patchHome(){
     +((bChW>10||dw>10)?mb(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10?bChW:dw)+'W',cBat):'')
     +fn(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true)
     +fn(nNet.x,nNet.y,'⚡',Math.abs(lw)>10?Math.abs(Math.round(lw))+'W':'—',netExport?'Einspeisung':'Netz','#8E8E93')
-    +fn(nHaus.x,nHaus.y,'🏠',hausW+'W','Haus',cHaus)
+    +fn(nHaus.x,nHaus.y,'🏠',hausW!=null?hausW+'W':'—','Haus',cHaus)
     +fn(nAku.x,nAku.y,'🔋',lv_soc+'%',bChW>10?'lädt':dw>10?'entlädt':'Akku',cBat)
     +'</svg>';
   flowEl.innerHTML=newSvg;
@@ -2026,9 +2035,10 @@ function rHome(){
     var fw=combinedSolarW();
     var dw=_fxf?foxessLive.batDischargeW:(lv?lv.battery&&lv.battery.dischargeW||0:0);
     var bChW=_fxf?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
-    var lw=_fxf?(foxessLive.gridW-foxessLive.feedinW):(lv?lv.venus&&lv.venus.load||0:0);
-    var hausW=measuredHausW(_fxf?Math.max(0,fw+dw-bChW+Math.max(0,lw))
-                  :(bChW>0?0:Math.max(0,Math.round(dw>=2500?Math.max(2500,dw+Math.max(0,lw)):dw+Math.max(0,lw)))));
+    var _cg2=ctGridW();
+    var lw=_cg2!=null?_cg2:(_fxf?(foxessLive.gridW-foxessLive.feedinW):(lv?lv.venus&&lv.venus.load||0:0));
+    var hasRealGrid2=_cg2!=null||_fxf||!!lv;
+    var hausW=houseBalanceW(fw,dw,bChW,lw,hasRealGrid2);
     var netExport=_fxf?(foxessLive.feedinW>foxessLive.gridW):(lw<0);
     var autarkie=hausW>0?Math.min(100,Math.round((hausW-Math.max(0,lw))/hausW*100)):0;
     var bv2=lv&&lv.battery;
@@ -2080,7 +2090,7 @@ function rHome(){
       // nodes on top
       +fnode(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true)
       +fnode(nNet.x,nNet.y,'⚡',Math.abs(Math.round(lw))+'W',netExport?'Einspeisung':'Netz',cNet)
-      +fnode(nHaus.x,nHaus.y,'🏠',hausW+'W','Haus',cHaus)
+      +fnode(nHaus.x,nHaus.y,'🏠',hausW!=null?hausW+'W':'—','Haus',cHaus)
       +fnode(nAku.x,nAku.y,'🔋',lv_soc+'%',bChW>10?'lädt':dw>10?'entlädt':'Akku',cBat)
       +'</svg>';
     flowCard.appendChild(svgWrap);
@@ -2216,14 +2226,15 @@ function patchSrc(){
   var ctActive=!!(lv&&lv.source==='cloud'&&ct);
   if(ctActive!==!!el('ctf-pv'))return false;
   if(ctActive){
-    var netW=ct.load||0;
+    var _cg3=ctGridW();
+    var netW=_cg3!=null?_cg3:(ct.load||0);
     var pvW2=combinedSolarW();
     var disW2=ct.discharge||0,chW2=ct.charge||0;
-    var hausW2=Math.max(0,Math.round(measuredHausW(pvW2+disW2+Math.max(0,netW)-chW2)));
+    var hausW2=houseBalanceW(pvW2,disW2,chW2,netW,true);
     setTxt('ctf-pv',pvW2);
     setTxt('ctf-bat',disW2>0?disW2:chW2);
     setTxt('ctf-grid',Math.abs(netW));
-    setTxt('ctf-haus',hausW2);
+    setTxt('ctf-haus',hausW2!=null?hausW2:'—');
   }
 
   var ctlActive=!!(ct002Local&&ct002Local.status==='ok');
@@ -2321,17 +2332,18 @@ function rSrc(){
   f.appendChild(ctHd);
   var ctCard=div('card fu');
   if(lv&&lv.source==='cloud'&&ct){
-    var netW=ct.load||0;
+    var _cg4=ctGridW();
+    var netW=_cg4!=null?_cg4:(ct.load||0);
     var pvW2=combinedSolarW(); // Solar: FoxESS/Solakon (eine Anlage) + PowerRouter (zweite Anlage), addiert
     var disW2=ct.discharge||0;
     var chW2=ct.charge||0;
-    var hausW2=Math.max(0,Math.round(measuredHausW(pvW2+disW2+Math.max(0,netW)-chW2))); // CT002 bevorzugt, sonst Formel-Schätzung
+    var hausW2=houseBalanceW(pvW2,disW2,chW2,netW,true); // Netzbezug: CT002 bevorzugt vor Cloud-Wert
     var profitToday=parseFloat(ct.profit||0);
     var tiles=[
       {id:'ctf-pv',ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:pvW2,u:'W',l:'Solar PV'},
       {id:'ctf-bat',ic:'🔋',bg:disW2>0?'var(--blb)':'var(--grb)',c:disW2>0?'var(--bl)':'var(--gr)',v:disW2>0?disW2:chW2,u:'W',l:disW2>0?'Akku→Haus':'Akku lädt'},
       {id:'ctf-grid',ic:'⚡',bg:netW>0?'var(--rdb)':'var(--grb)',c:netW>0?'var(--rd)':'var(--gr)',v:Math.abs(netW),u:'W',l:netW>0?'Netzbezug':'Einspeisung'},
-      {id:'ctf-haus',ic:'🏠',bg:'var(--pub)',c:'var(--pu)',v:hausW2,u:'W',l:'Hausverbrauch'}
+      {id:'ctf-haus',ic:'🏠',bg:'var(--pub)',c:'var(--pu)',v:hausW2!=null?hausW2:'—',u:hausW2!=null?'W':'',l:'Hausverbrauch'}
     ];
     var tileGrid=div('','display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px');
     tiles.forEach(function(t){
