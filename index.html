@@ -258,7 +258,6 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .fu3{animation:fu .38s .18s ease both}
 .fu4{animation:fu .38s .24s ease both}
 .fu5{animation:fu .38s .3s ease both}
-.noanim .fu,.noanim .fu1,.noanim .fu2,.noanim .fu3,.noanim .fu4,.noanim .fu5{animation:none!important;opacity:1!important;transform:none!important}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 /* ── Login screen ── */
 .lw{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 28px;text-align:center}
@@ -538,7 +537,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-20 20:57';
+var APP_VERSION='v1.0 - 2026-06-20 21:09';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -910,7 +909,7 @@ function fetchMarstek(silent) {
       lastFetch=Date.now();
       shareWrite();
       if(!silent)toast('Marstek aktualisiert');
-      if(curTab==='home'){if(silent)patchHome();else rHome();}if(curTab==='src'){if(silent)rSrcQuiet();else rSrc();}
+      if(curTab==='home'){if(silent)patchHome();else rHome();}if(curTab==='src'&&!silent)rSrc();
     }).catch(function(e){trackUptime(false);if(!silent)toast('Marstek: '+e.message);});
 }
 
@@ -964,7 +963,6 @@ function fetchPiBridge(){
       piBridgeLive[key]=Object.assign({},row.data,{_ts:new Date(row.updated_at).getTime()});
     });
     if(curTab==='home')patchHome();
-    if(curTab==='src')rSrcQuiet();
   }).catch(function(e){console.error('[PiBridge] Fehler:',e.message);});
 }
 
@@ -1049,7 +1047,7 @@ function doFetchFoxESS(silent){
     trackUptime(true);
     lastFetch=foxessLastFetch;
     if(!silent){if(curTab==='home')rHome();if(curTab==='src')rSrc();}
-    else{if(curTab==='home')patchHome();if(curTab==='src')rSrcQuiet();}
+    else{if(curTab==='home')patchHome();}
     checkNotifications(foxessLive.soc,foxessLive.pvW);
   }).catch(function(e){
     foxessLive=null;foxessLastFetch=0;
@@ -1108,7 +1106,7 @@ function fetchSolakon(silent){
     solakonLastFetch=Date.now();
     trackUptime(true);
     if(curTab==='home')patchHome();
-    if(curTab==='src'){if(silent)rSrcQuiet();else rSrc();}
+    if(curTab==='src'&&!silent)rSrc();
     if(!silent)toast('Solakon ☀️ '+Math.round(pvW)+'W');
   }).catch(function(e){
     trackUptime(false);
@@ -1309,7 +1307,7 @@ function startGuestMode(pin){
       if(live)live.source='guest';
       lastFetch=new Date(d.updated_at).getTime()||Date.now();
       if(d.entries&&d.entries.length){E=d.entries;svE();}
-      if(curTab==='home')patchHome();if(curTab==='src')rSrcQuiet();if(curTab==='trnd')rTrnd();
+      if(curTab==='home')patchHome();if(curTab==='trnd')rTrnd();
     });
   };
   pollGuest();
@@ -1526,7 +1524,6 @@ function setSrc(s){S.activeSrc=s;svS();rHome();}
 function openCo(){el('co-p').value=S.strompreis;el('co-e').value=S.einspeise;el('co-c').value=S.currency||'EUR';showOv('co');}
 
 /* ── Chart helper ── */
-var mkChQuiet=false;
 function mkCH(id,type,labels,datasets,extra){
   if(CH[id]){CH[id].destroy();delete CH[id];}
   var ctx=el(id);if(!ctx)return;
@@ -1539,7 +1536,7 @@ function mkCH(id,type,labels,datasets,extra){
       zoom:{zoom:{wheel:{enabled:false},pinch:{enabled:false},mode:'x'},pan:{enabled:true,mode:'x'}}
     },
     scales:{x:{grid:{display:false},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}}},
-    animation:mkChQuiet?false:{duration:460,easing:'easeInOutQuart'}};
+    animation:{duration:460,easing:'easeInOutQuart'}};
   if(extra)Object.assign(opts,extra);
   CH[id]=new Chart(ctx,{type:type,data:{labels:labels,datasets:datasets},options:opts});
   ctx.ondblclick=function(){if(CH[id])CH[id].resetZoom();};
@@ -1779,7 +1776,7 @@ function fetchCT002Local(silent){
       // Netzbezug aus lokalem CT002 überschreibt Cloud-Wert wenn verfügbar
       if(live&&live.venus)live.venus.load=d.gesamt_w;
       if(!silent)toast('CT002 lokal ✓ '+d.gesamt_w.toFixed(0)+'W');
-      if(curTab==='home')patchHome();if(curTab==='src'){if(silent)rSrcQuiet();else rSrc();}
+      if(curTab==='home')patchHome();if(curTab==='src'&&!silent)rSrc();
     })
     .catch(function(){ct002Local=null;});
 }
@@ -2131,16 +2128,6 @@ function rHome(){
 }
 
 /* ══════ RENDER SOURCES ══════ */
-function rSrcQuiet(){
-  document.documentElement.classList.add('noanim');
-  mkChQuiet=true;
-  rSrc();
-  // rSrc() erstellt Charts teils verzögert via setTimeout(...,0) — Flag erst danach zurücksetzen
-  setTimeout(function(){
-    mkChQuiet=false;
-    document.documentElement.classList.remove('noanim');
-  },80);
-}
 function rSrc(){
   var entries=ae(),lv=al();
   var todayE=null;for(var i=0;i<entries.length;i++){if(entries[i].date===today()){todayE=entries[i];break;}}
