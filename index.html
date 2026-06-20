@@ -518,8 +518,23 @@ var E=[], S={}, live=null, demo=false, curTab='home', CH={}, msr='b', fi=null;
 var demoInt=null, currentUser=null, isAdmin=false, guestMode=false;
 // Energy accumulator — integrates W readings into kWh since midnight
 var acc={date:'',solar:0,bat:0,grid:0,haus:0,eigen:0,t:0};
-// Hourly snapshots for intraday chart (max 192 = 48h at 15s intervals)
-var hourlyH=[];
+// Hourly snapshots for intraday chart — persistiert in localStorage, ein Eintrag alle ~5min,
+// damit auch nach Reload/App-Neustart die vollen letzten 24h verfügbar sind.
+var HOURLY_PUSH_INTERVAL_MS=5*60*1000;
+var HOURLY_KEEP_MS=30*60*60*1000; // 30h Puffer, etwas mehr als die angezeigten 24h
+function ldHourly(){try{return JSON.parse(localStorage.getItem('vt3hourly')||'[]');}catch(e){return [];}}
+function svHourly(){
+  var cutoff=Date.now()-HOURLY_KEEP_MS;
+  hourlyH=hourlyH.filter(function(h){return h.ts>=cutoff;});
+  localStorage.setItem('vt3hourly',JSON.stringify(hourlyH));
+}
+function pushHourly(hs){
+  var last=hourlyH[hourlyH.length-1];
+  if(last&&(hs.ts-last.ts)<HOURLY_PUSH_INTERVAL_MS)return;
+  hourlyH.push(hs);
+  svHourly();
+}
+var hourlyH=ldHourly();
 function updateAcc(chargeW,dischargeW,loadW,hausW){
   var d=today(),now=Date.now();
   if(acc.date!==d){acc={date:d,solar:0,bat:0,grid:0,haus:0,eigen:0,t:now};return;}
@@ -537,7 +552,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-20 21:43';
+var APP_VERSION='v1.0 - 2026-06-20 21:47';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -936,7 +951,7 @@ function fetchMarstek(silent) {
       checkNotifications(soc,0);
       trackUptime(true);checkAnomalie();checkMorgenBriefing();checkTagesrekord();
       var hs={ts:Date.now(),chargeW:chargeW,dischargeW:dischargeW,loadW:loadW,soc:soc};
-      hourlyH.push(hs);if(hourlyH.length>192)hourlyH.shift();
+      pushHourly(hs);
       live={
         battery:{soc:soc,cap:cap,chargeW:chargeW,dischargeW:dischargeW,
                  charge:nf(acc.solar),discharge:nf(acc.bat),temp:temp},
