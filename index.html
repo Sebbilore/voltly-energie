@@ -537,7 +537,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-20 21:09';
+var APP_VERSION='v1.0 - 2026-06-20 21:18';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -909,7 +909,8 @@ function fetchMarstek(silent) {
       lastFetch=Date.now();
       shareWrite();
       if(!silent)toast('Marstek aktualisiert');
-      if(curTab==='home'){if(silent)patchHome();else rHome();}if(curTab==='src'&&!silent)rSrc();
+      if(curTab==='home'){if(silent)patchHome();else rHome();}
+      if(curTab==='src'){if(silent){if(!patchSrc())rSrc();}else rSrc();}
     }).catch(function(e){trackUptime(false);if(!silent)toast('Marstek: '+e.message);});
 }
 
@@ -963,6 +964,7 @@ function fetchPiBridge(){
       piBridgeLive[key]=Object.assign({},row.data,{_ts:new Date(row.updated_at).getTime()});
     });
     if(curTab==='home')patchHome();
+    if(curTab==='src'&&!patchSrc())rSrc();
   }).catch(function(e){console.error('[PiBridge] Fehler:',e.message);});
 }
 
@@ -1047,7 +1049,7 @@ function doFetchFoxESS(silent){
     trackUptime(true);
     lastFetch=foxessLastFetch;
     if(!silent){if(curTab==='home')rHome();if(curTab==='src')rSrc();}
-    else{if(curTab==='home')patchHome();}
+    else{if(curTab==='home')patchHome();if(curTab==='src'&&!patchSrc())rSrc();}
     checkNotifications(foxessLive.soc,foxessLive.pvW);
   }).catch(function(e){
     foxessLive=null;foxessLastFetch=0;
@@ -1106,7 +1108,7 @@ function fetchSolakon(silent){
     solakonLastFetch=Date.now();
     trackUptime(true);
     if(curTab==='home')patchHome();
-    if(curTab==='src'&&!silent)rSrc();
+    if(curTab==='src'){if(silent){if(!patchSrc())rSrc();}else rSrc();}
     if(!silent)toast('Solakon ☀️ '+Math.round(pvW)+'W');
   }).catch(function(e){
     trackUptime(false);
@@ -1308,6 +1310,7 @@ function startGuestMode(pin){
       lastFetch=new Date(d.updated_at).getTime()||Date.now();
       if(d.entries&&d.entries.length){E=d.entries;svE();}
       if(curTab==='home')patchHome();if(curTab==='trnd')rTrnd();
+      if(curTab==='src'&&!patchSrc())rSrc();
     });
   };
   pollGuest();
@@ -1776,7 +1779,8 @@ function fetchCT002Local(silent){
       // Netzbezug aus lokalem CT002 überschreibt Cloud-Wert wenn verfügbar
       if(live&&live.venus)live.venus.load=d.gesamt_w;
       if(!silent)toast('CT002 lokal ✓ '+d.gesamt_w.toFixed(0)+'W');
-      if(curTab==='home')patchHome();if(curTab==='src'&&!silent)rSrc();
+      if(curTab==='home')patchHome();
+      if(curTab==='src'){if(silent){if(!patchSrc())rSrc();}else rSrc();}
     })
     .catch(function(){ct002Local=null;});
 }
@@ -2116,7 +2120,7 @@ function rHome(){
   [['Solar','#FF9500'],['Akku','#007AFF'],['Netz','#FF3B30']].forEach(function(l){var li=div('','display:flex;align-items:center;gap:4px;font-size:12px;color:var(--t3)');li.innerHTML='<div style="width:7px;height:7px;border-radius:50%;background:'+l[1]+'"></div>'+l[0];leg.appendChild(li);});
   cc.appendChild(leg);f.appendChild(cc);
 
-  var rfBtn2=document.createElement('button');rfBtn2.className='btn b-fi';rfBtn2.style.width='100%';rfBtn2.innerHTML='↻ Aktualisieren';rfBtn2.onclick=fetchAll;f.appendChild(rfBtn2);
+  var rfBtn2=document.createElement('button');rfBtn2.id='src-refresh-btn';rfBtn2.className='btn b-fi';rfBtn2.style.width='100%';rfBtn2.innerHTML='↻ Aktualisieren';rfBtn2.onclick=fetchAll;f.appendChild(rfBtn2);
 
   var hb=el('hb');
   var old=hb.firstChild;
@@ -2128,6 +2132,108 @@ function rHome(){
 }
 
 /* ══════ RENDER SOURCES ══════ */
+function setTxt(id,val){var e=el(id);if(e)e.textContent=val;}
+// Aktualisiert nur die Zahlen im bestehenden DOM (kein innerHTML-Reset) — kein Flackern bei
+// Hintergrund-Updates. Gibt false zurück wenn sich die Struktur geändert hat (Quelle an/aus,
+// stale/live gewechselt) — dann muss der Aufrufer rSrc() (voller Rebuild) nutzen.
+function patchSrc(){
+  if(curTab!=='src'||!el('src-refresh-btn'))return false; // Quellen-Seite nicht offen/noch nie gerendert
+  var lv=al();
+  var bat=lv&&lv.battery,ct=lv&&lv.venus;
+  var bv=bat||(demo?DLIVE.battery:null);
+
+  var ctActive=!!(lv&&lv.source==='cloud'&&ct);
+  if(ctActive!==!!el('ctf-pv'))return false;
+  if(ctActive){
+    var netW=ct.load||0;
+    var _skx2=S.solakonEnabled&&solakonLive&&!solakonIsStale();
+    var pvW2=S.foxessEnabled&&!foxessIsStale()?foxessLive.pvW:(_skx2?solakonLive.pvW:0);
+    var disW2=ct.discharge||0,chW2=ct.charge||0;
+    var hausW2=Math.max(0,Math.round(pvW2+disW2+Math.max(0,netW)-chW2));
+    setTxt('ctf-pv',pvW2);
+    setTxt('ctf-bat',disW2>0?disW2:chW2);
+    setTxt('ctf-grid',Math.abs(netW));
+    setTxt('ctf-haus',hausW2);
+  }
+
+  var ctlActive=!!(ct002Local&&ct002Local.status==='ok');
+  if(ctlActive!==!!el('ctl-ges'))return false;
+  if(ctlActive){
+    [['ctl-ges',ct002Local.gesamt_w],['ctl-l1',ct002Local.L1_w],['ctl-l2',ct002Local.L2_w],['ctl-l3',ct002Local.L3_w]].forEach(function(p){
+      var sign=p[1]>0?'':p[1]<0?'←':'';
+      setTxt(p[0],sign+Math.abs(p[1]).toFixed(0));
+    });
+  }
+
+  if(!!bv!==!!el('ak-soc'))return false;
+  if(bv){
+    var chargeW=bv.chargeW||0,dischargeW=bv.dischargeW||0;
+    var isChg=chargeW>10,isDis=dischargeW>10;
+    setTxt('ak-soc',bv.soc+'%');
+    setTxt('ak-state',isChg?'☀️ Solar '+chargeW+'W':isDis?'🔋 Entlädt '+dischargeW+'W':'⏸ Inaktiv');
+    var bar=el('ak-socbar');if(bar)bar.style.width=bv.soc+'%';
+    var acSolSrc=acc.date===today()?nf(acc.solar):0;
+    var acBatSrc=acc.date===today()?nf(acc.bat):0;
+    var acGrdSrc=acc.date===today()?nf(acc.grid):0;
+    setTxt('ak-sol',acSolSrc.toFixed(2)+' kWh');
+    setTxt('ak-bat',acBatSrc.toFixed(2)+' kWh');
+    setTxt('ak-grd',acGrdSrc.toFixed(2)+' kWh');
+    var recTxt,recIc;
+    if(chargeW>200){recIc='💡';recTxt='Solar aktiv — Verbraucher jetzt einschalten!';}
+    else if(bv.soc>80){recIc='✅';recTxt='Akku gut geladen ('+bv.soc+'%). Jetzt günstig verbrauchen.';}
+    else if(bv.soc<20){recIc='⚠️';recTxt='Akku fast leer! Verbraucher reduzieren.';}
+    else if(dischargeW>500){recIc='💰';recTxt='Akku liefert '+dischargeW+'W — sparsam nutzen.';}
+    else{recIc='😴';recTxt='System im Ruhezustand.';}
+    setTxt('ak-recic',recIc);
+    setTxt('ak-rectxt',recTxt);
+  }
+
+  var fxActive=S.foxessEnabled&&!foxessIsStale();
+  if(fxActive!==!!el('fx-pv'))return false;
+  if(fxActive){
+    setTxt('fx-pv',foxessLive.pvW);
+    setTxt('fx-fd',foxessLive.feedinW+'W');
+    setTxt('fx-gd',foxessLive.gridW+'W');
+    setTxt('fx-soc',foxessLive.soc+'%');
+  }
+
+  var _skxs=S.solakonEnabled&&solakonLive&&!solakonIsStale();
+  if(_skxs!==!!el('sk-pv'))return false;
+  if(_skxs){
+    setTxt('sk-pv',Math.round(solakonLive.pvW));
+    setTxt('sk-today',solakonLive.todayKwh.toFixed(2)+' kWh');
+    setTxt('sk-total',solakonLive.totalKwh.toFixed(0)+' kWh');
+  }
+
+  var _prx=!piBridgeIsStale('powerrouter');
+  if(_prx!==!!el('pr-pv'))return false;
+  if(_prx){
+    var pr=piBridgeLive.powerrouter;
+    var prW=parseFloat(pr.power_w||pr.pv_w||pr.acPower||pr.ac_power||0);
+    setTxt('pr-pv',Math.round(prW));
+  }
+
+  var _wbx=!piBridgeIsStale('wallbox');
+  if(_wbx!==!!el('wb-pw'))return false;
+  if(_wbx){
+    var wb=piBridgeLive.wallbox;
+    var wbStateMap={2:'Kein Fahrzeug',3:'Fahrzeug erkannt',4:'Lädt',5:'Wallbox gesperrt',6:'Lädt (Lüftung)',7:'Fahrzeug+Lüftung',8:'Fehler (Laden)',9:'Fehler',10:'Lädt',11:'Entlädt'};
+    setTxt('wb-pw',Math.round(wb.power_w||0));
+    setTxt('wb-st',wbStateMap[wb.charging_state]||('Status '+wb.charging_state));
+    setTxt('wb-tp',wb.temp_c!=null?wb.temp_c.toFixed(1)+'°C':'');
+  }
+
+  var _ctpx=!piBridgeIsStale('ct002pi')&&!(ct002Local&&ct002Local.status==='ok');
+  if(_ctpx!==!!el('ctp-ges'))return false;
+  if(_ctpx){
+    var ctp=piBridgeLive.ct002pi;
+    [['ctp-ges',ctp.gesamt_w],['ctp-l1',ctp.L1_w],['ctp-l2',ctp.L2_w],['ctp-l3',ctp.L3_w]].forEach(function(p){
+      setTxt(p[0],Math.round(p[1]||0));
+    });
+  }
+
+  return true;
+}
 function rSrc(){
   var entries=ae(),lv=al();
   var todayE=null;for(var i=0;i<entries.length;i++){if(entries[i].date===today()){todayE=entries[i];break;}}
@@ -2153,16 +2259,16 @@ function rSrc(){
     var hausW2=Math.max(0,Math.round(pvW2+disW2+Math.max(0,netW)-chW2));
     var profitToday=parseFloat(ct.profit||0);
     var tiles=[
-      {ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:pvW2,u:'W',l:'Solar PV'},
-      {ic:'🔋',bg:disW2>0?'var(--blb)':'var(--grb)',c:disW2>0?'var(--bl)':'var(--gr)',v:disW2>0?disW2:chW2,u:'W',l:disW2>0?'Akku→Haus':'Akku lädt'},
-      {ic:'⚡',bg:netW>0?'var(--rdb)':'var(--grb)',c:netW>0?'var(--rd)':'var(--gr)',v:Math.abs(netW),u:'W',l:netW>0?'Netzbezug':'Einspeisung'},
-      {ic:'🏠',bg:'var(--pub)',c:'var(--pu)',v:hausW2,u:'W',l:'Hausverbrauch'}
+      {id:'ctf-pv',ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:pvW2,u:'W',l:'Solar PV'},
+      {id:'ctf-bat',ic:'🔋',bg:disW2>0?'var(--blb)':'var(--grb)',c:disW2>0?'var(--bl)':'var(--gr)',v:disW2>0?disW2:chW2,u:'W',l:disW2>0?'Akku→Haus':'Akku lädt'},
+      {id:'ctf-grid',ic:'⚡',bg:netW>0?'var(--rdb)':'var(--grb)',c:netW>0?'var(--rd)':'var(--gr)',v:Math.abs(netW),u:'W',l:netW>0?'Netzbezug':'Einspeisung'},
+      {id:'ctf-haus',ic:'🏠',bg:'var(--pub)',c:'var(--pu)',v:hausW2,u:'W',l:'Hausverbrauch'}
     ];
     var tileGrid=div('','display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px');
     tiles.forEach(function(t){
       var ti=div('','background:'+t.bg+';border-radius:16px;padding:16px 14px;display:flex;flex-direction:column;gap:5px;cursor:default');
       ti.innerHTML='<div style="font-size:24px;margin-bottom:2px">'+t.ic+'</div>'
-        +'<div style="font-size:26px;font-weight:700;color:'+t.c+';font-variant-numeric:tabular-nums;letter-spacing:-.5px;line-height:1">'+t.v+'<span style="font-size:13px;font-weight:500;opacity:.65"> '+t.u+'</span></div>'
+        +'<div style="font-size:26px;font-weight:700;color:'+t.c+';font-variant-numeric:tabular-nums;letter-spacing:-.5px;line-height:1"><span id="'+t.id+'">'+t.v+'</span><span style="font-size:13px;font-weight:500;opacity:.65"> '+t.u+'</span></div>'
         +'<div style="font-size:12px;color:var(--t3);margin-top:1px">'+t.l+'</div>';
       tileGrid.appendChild(ti);
     });
@@ -2185,15 +2291,15 @@ function rSrc(){
     var ctlCard=div('card fu1','margin-bottom:12px');
     var ctlHd=div('','font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:14px 16px 0');ctlHd.textContent='⚡ CT002 Direkt (lokal)';ctlCard.appendChild(ctlHd);
     var ctlGrid=div('','display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:12px 14px');
-    [['Gesamt',ct002Local.gesamt_w,'var(--or)','var(--orb)'],
-     ['L1',ct002Local.L1_w,'var(--bl)','var(--blb)'],
-     ['L2',ct002Local.L2_w,'var(--gr)','var(--grb)'],
-     ['L3',ct002Local.L3_w,'var(--pu)','var(--pub)']
+    [['ctl-ges','Gesamt',ct002Local.gesamt_w,'var(--or)','var(--orb)'],
+     ['ctl-l1','L1',ct002Local.L1_w,'var(--bl)','var(--blb)'],
+     ['ctl-l2','L2',ct002Local.L2_w,'var(--gr)','var(--grb)'],
+     ['ctl-l3','L3',ct002Local.L3_w,'var(--pu)','var(--pub)']
     ].forEach(function(s){
-      var t=div('','background:'+s[3]+';border-radius:12px;padding:10px 8px;text-align:center');
-      var sign=s[1]>0?'':s[1]<0?'←':'';
-      t.innerHTML='<div style="font-size:13px;font-weight:700;color:'+s[2]+';letter-spacing:-.3px">'+sign+Math.abs(s[1]).toFixed(0)+'<span style="font-size:10px;opacity:.7"> W</span></div>'
-        +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+s[0]+'</div>';
+      var t=div('','background:'+s[4]+';border-radius:12px;padding:10px 8px;text-align:center');
+      var sign=s[2]>0?'':s[2]<0?'←':'';
+      t.innerHTML='<div style="font-size:13px;font-weight:700;color:'+s[3]+';letter-spacing:-.3px"><span id="'+s[0]+'">'+sign+Math.abs(s[2]).toFixed(0)+'</span><span style="font-size:10px;opacity:.7"> W</span></div>'
+        +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+s[1]+'</div>';
       ctlGrid.appendChild(t);
     });
     ctlCard.appendChild(ctlGrid);
@@ -2211,24 +2317,24 @@ function rSrc(){
     var akInfo=div('','flex:1;color:#fff');
     var stateStr=isChg?'☀️ Solar '+chargeW+'W':isDis?'🔋 Entlädt '+dischargeW+'W':'⏸ Inaktiv';
     akInfo.innerHTML='<div style="font-size:13px;opacity:.7;margin-bottom:4px">Marstek Venus E 3.0</div>'
-      +'<div style="font-size:28px;font-weight:700;letter-spacing:-1px">'+bv.soc+'%</div>'
-      +'<div style="font-size:13px;margin-top:6px;opacity:.9">'+stateStr+'</div>'
+      +'<div id="ak-soc" style="font-size:28px;font-weight:700;letter-spacing:-1px">'+bv.soc+'%</div>'
+      +'<div id="ak-state" style="font-size:13px;margin-top:6px;opacity:.9">'+stateStr+'</div>'
       +(bv.cap?'<div style="font-size:12px;margin-top:4px;opacity:.65">'+((bv.cap/1000).toFixed(1))+' kWh Kapazität</div>':'');
     akTop.appendChild(akInfo);akBanner.appendChild(akTop);
     // SOC-Balken
     var socBarW=div('','height:6px;background:rgba(255,255,255,.2);border-radius:4px;margin-bottom:16px');
-    var socBarF=div('','height:6px;background:#fff;border-radius:4px;width:'+bv.soc+'%;transition:width .5s');
+    var socBarF=div('','height:6px;background:#fff;border-radius:4px;width:'+bv.soc+'%;transition:width .5s');socBarF.id='ak-socbar';
     socBarW.appendChild(socBarF);akBanner.appendChild(socBarW);
     // 3 Stat-Kacheln
     var acSolSrc=acc.date===today()?nf(acc.solar):0;
     var acBatSrc=acc.date===today()?nf(acc.bat):0;
     var acGrdSrc=acc.date===today()?nf(acc.grid):0;
     var akStats=div('','display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px');
-    [['☀️','Geladen',acSolSrc.toFixed(2)+' kWh'],['🔋','Entladen',acBatSrc.toFixed(2)+' kWh'],['⚡','Netzbezug',acGrdSrc.toFixed(2)+' kWh']].forEach(function(s){
+    [['ak-sol','☀️','Geladen',acSolSrc.toFixed(2)+' kWh'],['ak-bat','🔋','Entladen',acBatSrc.toFixed(2)+' kWh'],['ak-grd','⚡','Netzbezug',acGrdSrc.toFixed(2)+' kWh']].forEach(function(s){
       var st=div('','background:rgba(255,255,255,.15);border-radius:12px;padding:10px 8px;text-align:center');
-      st.innerHTML='<div style="font-size:16px;margin-bottom:4px">'+s[0]+'</div>'
-        +'<div style="font-size:14px;font-weight:700;color:#fff">'+s[2]+'</div>'
-        +'<div style="font-size:10px;color:rgba(255,255,255,.65);margin-top:2px">'+s[1]+' heute</div>';
+      st.innerHTML='<div style="font-size:16px;margin-bottom:4px">'+s[1]+'</div>'
+        +'<div id="'+s[0]+'" style="font-size:14px;font-weight:700;color:#fff">'+s[3]+'</div>'
+        +'<div style="font-size:10px;color:rgba(255,255,255,.65);margin-top:2px">'+s[2]+' heute</div>';
       akStats.appendChild(st);
     });akBanner.appendChild(akStats);
     // Lastempfehlung-Chip
@@ -2239,7 +2345,7 @@ function rSrc(){
     else if(dischargeW>500){recIc='💰';recTxt='Akku liefert '+dischargeW+'W — sparsam nutzen.';}
     else{recIc='😴';recTxt='System im Ruhezustand.';}
     var recChip=div('','background:rgba(255,255,255,.18);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px');
-    recChip.innerHTML='<span style="font-size:18px">'+recIc+'</span><span style="font-size:13px;color:#fff;font-weight:500">'+recTxt+'</span>';
+    recChip.innerHTML='<span id="ak-recic" style="font-size:18px">'+recIc+'</span><span id="ak-rectxt" style="font-size:13px;color:#fff;font-weight:500">'+recTxt+'</span>';
     akBanner.appendChild(recChip);
 
   } else {
@@ -2253,14 +2359,14 @@ function rSrc(){
     var fxTop=div('','display:flex;align-items:center;justify-content:space-between;margin-bottom:12px');
     var fxInfo=div('');
     fxInfo.innerHTML='<div style="font-size:13px;opacity:.7;margin-bottom:4px">FoxESS M1 800</div>'
-      +'<div style="font-size:36px;font-weight:800;color:#fff;line-height:1">'+foxessLive.pvW+'<span style="font-size:16px;font-weight:400;margin-left:4px">W</span></div>'
+      +'<div style="font-size:36px;font-weight:800;color:#fff;line-height:1"><span id="fx-pv">'+foxessLive.pvW+'</span><span style="font-size:16px;font-weight:400;margin-left:4px">W</span></div>'
       +'<div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px">Solarleistung aktuell</div>';
     fxTop.appendChild(fxInfo);
     var fxIcon=div('','font-size:48px;opacity:.6');fxIcon.textContent='☀️';fxTop.appendChild(fxIcon);
     fxBanner.appendChild(fxTop);
     var fxStats=div('','display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;border-top:.5px solid rgba(255,255,255,.25);padding-top:12px');
-    [[foxessLive.feedinW+'W','Einspeisung'],[foxessLive.gridW+'W','Netzbezug'],[foxessLive.soc+'%','SoC']].forEach(function(r){
-      var s=div('','text-align:center');s.innerHTML='<div style="font-size:16px;font-weight:700;color:#fff">'+r[0]+'</div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px">'+r[1]+'</div>';fxStats.appendChild(s);
+    [['fx-fd',foxessLive.feedinW+'W','Einspeisung'],['fx-gd',foxessLive.gridW+'W','Netzbezug'],['fx-soc',foxessLive.soc+'%','SoC']].forEach(function(r){
+      var s=div('','text-align:center');s.innerHTML='<div id="'+r[0]+'" style="font-size:16px;font-weight:700;color:#fff">'+r[1]+'</div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px">'+r[2]+'</div>';fxStats.appendChild(s);
     });
     fxBanner.appendChild(fxStats);
     f.appendChild(fxBanner);
@@ -2276,14 +2382,14 @@ function rSrc(){
     var skTop=div('','display:flex;align-items:center;justify-content:space-between;margin-bottom:12px');
     var skInfo=div('');
     skInfo.innerHTML='<div style="font-size:13px;opacity:.7;margin-bottom:4px">Solakon · FoxESS M1 800</div>'
-      +'<div style="font-size:36px;font-weight:800;color:#fff;line-height:1">'+Math.round(solakonLive.pvW)+'<span style="font-size:16px;font-weight:400;margin-left:4px">W</span></div>'
+      +'<div style="font-size:36px;font-weight:800;color:#fff;line-height:1"><span id="sk-pv">'+Math.round(solakonLive.pvW)+'</span><span style="font-size:16px;font-weight:400;margin-left:4px">W</span></div>'
       +'<div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px">Solarleistung aktuell</div>';
     skTop.appendChild(skInfo);
     var skIcon=div('','font-size:48px;opacity:.6');skIcon.textContent='⚡';skTop.appendChild(skIcon);
     skBanner.appendChild(skTop);
     var skStats=div('','display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:.5px solid rgba(255,255,255,.25);padding-top:12px');
-    [[solakonLive.todayKwh.toFixed(2)+' kWh','Heute'],[solakonLive.totalKwh.toFixed(0)+' kWh','Gesamt']].forEach(function(r){
-      var s=div('','text-align:center');s.innerHTML='<div style="font-size:18px;font-weight:700;color:#fff">'+r[0]+'</div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px">'+r[1]+'</div>';skStats.appendChild(s);
+    [['sk-today',solakonLive.todayKwh.toFixed(2)+' kWh','Heute'],['sk-total',solakonLive.totalKwh.toFixed(0)+' kWh','Gesamt']].forEach(function(r){
+      var s=div('','text-align:center');s.innerHTML='<div id="'+r[0]+'" style="font-size:18px;font-weight:700;color:#fff">'+r[1]+'</div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px">'+r[2]+'</div>';skStats.appendChild(s);
     });
     skBanner.appendChild(skStats);
     f.appendChild(skBanner);
@@ -2305,7 +2411,7 @@ function rSrc(){
     var prTop=div('','display:flex;align-items:center;justify-content:space-between;margin-bottom:12px');
     var prInfo=div('');
     prInfo.innerHTML='<div style="font-size:13px;opacity:.7;margin-bottom:4px">nedap PowerRouter PR37S</div>'
-      +'<div style="font-size:36px;font-weight:800;color:#fff;line-height:1">'+Math.round(prW)+'<span style="font-size:16px;font-weight:400;margin-left:4px">W</span></div>'
+      +'<div style="font-size:36px;font-weight:800;color:#fff;line-height:1"><span id="pr-pv">'+Math.round(prW)+'</span><span style="font-size:16px;font-weight:400;margin-left:4px">W</span></div>'
       +'<div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px">Solarleistung aktuell (via Pi)</div>';
     prTop.appendChild(prInfo);
     var prIcon=div('','font-size:48px;opacity:.6');prIcon.textContent='☀️';prTop.appendChild(prIcon);
@@ -2325,9 +2431,9 @@ function rSrc(){
     var wbCard=div('card fu1','margin-bottom:12px');
     var wbHd=div('','font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:14px 16px 0');wbHd.textContent='🔌 Wallbox (Heidelberg)';wbCard.appendChild(wbHd);
     var wbRow=div('','display:flex;align-items:center;justify-content:space-between;padding:10px 16px 14px');
-    wbRow.innerHTML='<div><div style="font-size:24px;font-weight:700;color:var(--t)">'+Math.round(wb.power_w||0)+'<span style="font-size:13px;font-weight:500;opacity:.65"> W</span></div>'
-      +'<div style="font-size:12px;color:var(--t3);margin-top:2px">'+wbState+'</div></div>'
-      +'<div style="font-size:11px;color:var(--t4);text-align:right">'+(wb.temp_c!=null?wb.temp_c.toFixed(1)+'°C':'')+'</div>';
+    wbRow.innerHTML='<div><div style="font-size:24px;font-weight:700;color:var(--t)"><span id="wb-pw">'+Math.round(wb.power_w||0)+'</span><span style="font-size:13px;font-weight:500;opacity:.65"> W</span></div>'
+      +'<div id="wb-st" style="font-size:12px;color:var(--t3);margin-top:2px">'+wbState+'</div></div>'
+      +'<div id="wb-tp" style="font-size:11px;color:var(--t4);text-align:right">'+(wb.temp_c!=null?wb.temp_c.toFixed(1)+'°C':'')+'</div>';
     wbCard.appendChild(wbRow);
     f.appendChild(wbCard);
   }
@@ -2338,15 +2444,15 @@ function rSrc(){
     var ctpCard=div('card fu1','margin-bottom:12px');
     var ctpHd=div('','font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:14px 16px 0');ctpHd.textContent='⚡ CT002 (via Pi, remote)';ctpCard.appendChild(ctpHd);
     var ctpGrid=div('','display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:12px 14px');
-    [['Gesamt',ctp.gesamt_w,'var(--or)','var(--orb)'],
-     ['L1',ctp.L1_w,'var(--bl)','var(--blb)'],
-     ['L2',ctp.L2_w,'var(--gr)','var(--grb)'],
-     ['L3',ctp.L3_w,'var(--pu)','var(--pub)']
+    [['ctp-ges','Gesamt',ctp.gesamt_w,'var(--or)','var(--orb)'],
+     ['ctp-l1','L1',ctp.L1_w,'var(--bl)','var(--blb)'],
+     ['ctp-l2','L2',ctp.L2_w,'var(--gr)','var(--grb)'],
+     ['ctp-l3','L3',ctp.L3_w,'var(--pu)','var(--pub)']
     ].forEach(function(s){
-      var t=div('','background:'+s[3]+';border-radius:12px;padding:10px 8px;text-align:center');
-      var v=s[1]||0;
-      t.innerHTML='<div style="font-size:13px;font-weight:700;color:'+s[2]+';letter-spacing:-.3px">'+Math.round(v)+'<span style="font-size:10px;opacity:.7"> W</span></div>'
-        +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+s[0]+'</div>';
+      var t=div('','background:'+s[4]+';border-radius:12px;padding:10px 8px;text-align:center');
+      var v=s[2]||0;
+      t.innerHTML='<div style="font-size:13px;font-weight:700;color:'+s[3]+';letter-spacing:-.3px"><span id="'+s[0]+'">'+Math.round(v)+'</span><span style="font-size:10px;opacity:.7"> W</span></div>'
+        +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+s[1]+'</div>';
       ctpGrid.appendChild(t);
     });
     ctpCard.appendChild(ctpGrid);
