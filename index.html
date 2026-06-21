@@ -554,7 +554,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 11:58';
+var APP_VERSION='v1.0 - 2026-06-21 12:01';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -2713,6 +2713,33 @@ function rTrnd(){
     invRows.push(makeRow('📈','var(--pub)','Rendite','Anschaffungskosten eintragen →',null,'var(--t4)',true,function(){go('set');}));
   }
   f.appendChild(makeCard2(invRows));
+
+  // Vergleich heute/gestern/Vorwoche
+  var todayKey=today();
+  var ydKey=(function(){var d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);}());
+  var lwKey=(function(){var d=new Date();d.setDate(d.getDate()-7);return d.toISOString().slice(0,10);}());
+  var byDate={};entries.forEach(function(e){byDate[e.date]=e;});
+  var dCmp=[['Vorwoche',lwKey],['Gestern',ydKey],['Heute',todayKey]].map(function(p){
+    var e=byDate[p[1]];return {label:p[0],date:p[1],solar:e?gv(e,'solar'):0,has:!!e};
+  });
+  if(dCmp.some(function(d){return d.has;})){
+    addSH(f,'Tagesvergleich','fu4');
+    var dcCard=div('card fu4','padding:16px 18px;margin-bottom:12px');
+    var dcMax=Math.max.apply(null,dCmp.map(function(d){return d.solar;}).concat([0.1]));
+    var dcRow=div('','display:flex;justify-content:space-around;align-items:flex-end;gap:10px;height:90px;margin-bottom:8px');
+    dCmp.forEach(function(d){
+      var col=div('','display:flex;flex-direction:column;align-items:center;justify-content:flex-end;flex:1;height:100%');
+      var barH=Math.max(4,Math.round(d.solar/dcMax*70));
+      var isToday=d.label==='Heute';
+      var bar=div('','width:100%;max-width:48px;border-radius:8px 8px 0 0;background:'+(isToday?'var(--or)':'var(--orb)'));bar.style.height=barH+'px';
+      col.appendChild(bar);
+      var val=div('','font-size:11px;font-weight:700;color:'+(isToday?'var(--or)':'var(--t3)')+';margin-top:6px');val.textContent=d.has?d.solar.toFixed(1)+' kWh':'—';col.appendChild(val);
+      var lbl=div('','font-size:10px;color:var(--t4);margin-top:2px');lbl.textContent=d.label;col.appendChild(lbl);
+      dcRow.appendChild(col);
+    });
+    dcCard.appendChild(dcRow);
+    f.appendChild(dcCard);
+  }
 
   // Vergleich Vorjahr
   var lyM=new Date();lyM.setFullYear(lyM.getFullYear()-1);var lyKey=lyM.toISOString().slice(0,7);
