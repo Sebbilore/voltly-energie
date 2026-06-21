@@ -561,7 +561,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 13:57';
+var APP_VERSION='v1.0 - 2026-06-21 13:59';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1794,6 +1794,29 @@ function makeSeg(periods,current,fn){
 }
 
 /* ── Export CSV ── */
+/* ── Backup/Restore (Einstellungen + Verlauf als Datei) ── */
+function exportBackupJSON(){
+  var backup={version:1,exportedAt:new Date().toISOString(),settings:S,entries:E,acc:acc};
+  var blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='voltly-backup-'+today()+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);
+  toast('Backup exportiert ✓');
+}
+function importBackupJSON(file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=JSON.parse(e.target.result);
+      if(!data.settings||!Array.isArray(data.entries))throw new Error('Ungültiges Backup-Format');
+      S=Object.assign({},DEF,data.settings);svS();
+      E=data.entries;svE();
+      if(data.acc)acc=data.acc;
+      applyAllTheme();
+      toast('Backup wiederhergestellt ✓');
+      if(curTab==='home')rHome();else if(curTab==='set')rSet();else if(curTab==='trnd')rTrnd();
+    }catch(err){toast('Fehler: '+err.message);}
+  };
+  reader.readAsText(file);
+}
 function exportCSV(){
   var cur=getCur();
   var rows=[['Datum','Solar kWh','Akku kWh','Netz kWh','Ersparnis '+cur,'SOC %']];
@@ -3195,7 +3218,13 @@ function rSet(){
   });
   f.appendChild(gpCard);
 
-  addSH(f,'Daten','fu6');var dCard=div('card fu6');dCard.appendChild(makeRow('✏️','var(--pub)','Manuell eintragen',null,null,null,true,openMan));dCard.appendChild(sepEl());dCard.appendChild(makeRow('📊','var(--blb)','Als CSV exportieren','Excel / Steuererklärung',null,null,true,exportCSV));dCard.appendChild(sepEl());dCard.appendChild(makeRow('🖨','var(--grb)','Als PDF exportieren','Monatsbericht drucken',null,null,true,exportPDF));dCard.appendChild(sepEl());var delR=makeRow('🗑','var(--rdb)','Alle Daten löschen',null,null,'var(--rd)',false,function(){showAlert('Verlauf löschen','Alle lokalen Daten löschen?',[{label:'Abbrechen',bold:true,fn:closeAlert},{label:'Löschen',danger:true,fn:function(){E=[];svE();closeAlert();toast('Gelöscht');if(curTab==='home')rHome();}}]);});delR.querySelector('.rl').style.color='var(--rd)';dCard.appendChild(delR);f.appendChild(dCard);
+  addSH(f,'Daten','fu6');var dCard=div('card fu6');dCard.appendChild(makeRow('✏️','var(--pub)','Manuell eintragen',null,null,null,true,openMan));dCard.appendChild(sepEl());dCard.appendChild(makeRow('📊','var(--blb)','Als CSV exportieren','Excel / Steuererklärung',null,null,true,exportCSV));dCard.appendChild(sepEl());dCard.appendChild(makeRow('🖨','var(--grb)','Als PDF exportieren','Monatsbericht drucken',null,null,true,exportPDF));dCard.appendChild(sepEl());
+  dCard.appendChild(makeRow('💾','var(--tlb)','Backup exportieren','Einstellungen + Verlauf als Datei',null,null,true,exportBackupJSON));dCard.appendChild(sepEl());
+  var restoreInp=document.createElement('input');restoreInp.type='file';restoreInp.accept='.json';restoreInp.style.display='none';
+  restoreInp.onchange=function(){if(this.files&&this.files[0])importBackupJSON(this.files[0]);this.value='';};
+  dCard.appendChild(restoreInp);
+  dCard.appendChild(makeRow('📥','var(--orb)','Backup importieren','Aus Datei wiederherstellen',null,null,true,function(){restoreInp.click();}));dCard.appendChild(sepEl());
+  var delR=makeRow('🗑','var(--rdb)','Alle Daten löschen',null,null,'var(--rd)',false,function(){showAlert('Verlauf löschen','Alle lokalen Daten löschen?',[{label:'Abbrechen',bold:true,fn:closeAlert},{label:'Löschen',danger:true,fn:function(){E=[];svE();closeAlert();toast('Gelöscht');if(curTab==='home')rHome();}}]);});delR.querySelector('.rl').style.color='var(--rd)';dCard.appendChild(delR);f.appendChild(dCard);
 
   /* ── Akku & Anlage ── */
   addSH(f,'Akku & Anlage','fu7');
