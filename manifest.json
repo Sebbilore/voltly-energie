@@ -1,0 +1,19 @@
+{
+  "name": "Voltly — Deine Energie-Zentrale",
+  "short_name": "Voltly",
+  "description": "Solar, Akku und Energiefluss live im Blick.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F2F2F7",
+  "theme_color": "#F2F2F7",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Übersicht", "url": "/?tab=home", "description": "Live-Energiefluss" },
+    { "name": "Quellen", "url": "/?tab=src", "description": "Solar, Akku, Netz im Detail" }
+  ]
+}
