@@ -554,7 +554,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 12:33';
+var APP_VERSION='v1.0 - 2026-06-21 12:39';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -2573,12 +2573,12 @@ function rSrc(){
     f.appendChild(ctpCard);
   }
 
-  // SOC 24h Verlauf
+  // SOC 24h Verlauf — Detailansicht, in Kompakt-Modus ausgeblendet
   var _soc24pts=(function(){var n=Date.now();var pts=hourlyH.filter(function(h){return h.ts>=n-86400000;});
     // Direkt nach Reset/Erststart nur 1 Punkt vorhanden — zweiten synthetisch ergänzen, damit sofort eine Linie sichtbar ist
     if(pts.length===1)pts=[pts[0],Object.assign({},pts[0],{ts:n})];
     return pts;}());
-  if(_soc24pts.length>=2){
+  if(!S.kompaktAnsicht&&_soc24pts.length>=2){
     var soc24cc=div('cc fu3');
     soc24cc.innerHTML='<div style="font-size:15px;font-weight:600;margin-bottom:10px">🔋 Ladestand — Letzte 24h</div>';
     var soc24w=div('cw');var soc24cv=document.createElement('canvas');soc24cv.id='ch-soc';soc24w.appendChild(soc24cv);soc24cc.appendChild(soc24w);
@@ -2691,16 +2691,19 @@ function rTrnd(){
 
   var cc1=div('cc fu1');cc1.innerHTML='<div style="font-size:15px;font-weight:600;margin-bottom:10px">Kumulierter Ertrag</div>';cc1.appendChild(makeSeg([['day','Tage'],['week','Wochen'],['month','Monate'],['year','Jahre']],period,function(p){S.chartPeriod=p;svS();rTrnd();}));var cw1=div('cw');var cv1=document.createElement('canvas');cv1.id='ch-cum';cw1.appendChild(cv1);cc1.appendChild(cw1);f.appendChild(cc1);
 
+  if(!S.kompaktAnsicht){
   addSH(f,'Monatsuübersicht','fu2');var mCard=div('card fu2');months.slice().reverse().forEach(function(m,i){if(i>0)mCard.appendChild(sepEl());var r=div('','padding:13px 18px');var inner=div('','display:flex;align-items:center;gap:12px');var lbl=document.createElement('span');lbl.style.cssText='font-size:14px;font-weight:600;min-width:48px;color:var(--t)';lbl.textContent=m.label;inner.appendChild(lbl);var barW=div('tbar');var barF=div('tbar-f','width:'+Math.round(m.solar/maxS*100)+'%');barW.appendChild(barF);inner.appendChild(barW);var vals=div('','text-align:right;min-width:80px');vals.innerHTML='<div style="font-size:13px;font-weight:700;color:var(--or);font-variant-numeric:tabular-nums">'+m.solar.toFixed(1)+' kWh</div><div style="font-size:12px;color:var(--gr)">+'+m.save.toFixed(2)+' '+cur+'</div>';inner.appendChild(vals);r.appendChild(inner);mCard.appendChild(r);});f.appendChild(mCard);
 
   addSH(f,'Durchschnittswerte','fu3');f.appendChild(makeCard2([makeRow('☀️','var(--orb)','Ø Solar/Tag',null,avgDay.toFixed(2)+' kWh','var(--or)',false,function(){showTip('Basis für Prognose: '+avgDay.toFixed(2)+' kWh/Tag × 365 = '+(avgDay*365).toFixed(0)+' kWh/Jahr');}),makeRow('💶','var(--grb)','Ø Ersparnis/Tag',null,(cSv/(entries.length||1)).toFixed(2)+' '+cur,'var(--gr)',false,null),makeRow('📅','var(--blb)','Ø pro Monat',null,avgMon.toFixed(2)+' '+cur,'var(--bl)',false,null),makeRow('🎯','var(--pub)','Jahresprognose',null,Math.round(avgDay*365)+' '+cur+'/Jahr','var(--pu)',false,function(){showTip('Realer Wert abhängig von Saison, Verbrauch und Strompreis.');}) ]));
+  }
 
-  // Investition & Rendite
+  // Investition & Rendite — Detailansicht, in Kompakt-Modus ausgeblendet
   var co2Wert=nf(cCO*0.065);
   var renditeData=calcRendite();
   var totalGrid=0;entries.forEach(function(e){totalGrid+=gv(e,'grid');});
   var ohneAnlage=nf((cS+totalGrid)*S.strompreis);
   var mitAnlage=nf(totalGrid*S.strompreis);
+  if(!S.kompaktAnsicht){
   addSH(f,'Investition & Rendite','fu4');
   var invRows=[
     makeRow('🌍','var(--tlb)','CO₂-Zertifikate Wert',null,co2Wert.toFixed(2)+' '+cur,'var(--tl)',false,function(){showTip('CO₂ gespart × ~65 €/t (EU ETS). Kein Verkauf möglich, aber rechnerischer Wert.');}),
@@ -2713,6 +2716,7 @@ function rTrnd(){
     invRows.push(makeRow('📈','var(--pub)','Rendite','Anschaffungskosten eintragen →',null,'var(--t4)',true,function(){go('set');}));
   }
   f.appendChild(makeCard2(invRows));
+  }
 
   // Vergleich heute/gestern/Vorwoche
   var todayKey=today();
@@ -2741,14 +2745,14 @@ function rTrnd(){
     f.appendChild(dcCard);
   }
 
-  // Vergleich Vorjahr
+  // Vergleich Vorjahr — Detailansicht, in Kompakt-Modus ausgeblendet
   var lyM=new Date();lyM.setFullYear(lyM.getFullYear()-1);var lyKey=lyM.toISOString().slice(0,7);
   var thisKey=today().slice(0,7);
   var lyE=entries.filter(function(e){return e.date.startsWith(lyKey);});
   var tmE=entries.filter(function(e){return e.date.startsWith(thisKey);});
   var lyS=lyE.reduce(function(s,e){return s+gv(e,'solar');},0);
   var tmS=tmE.reduce(function(s,e){return s+gv(e,'solar');},0);
-  if(lyS>0||tmS>0){
+  if(!S.kompaktAnsicht&&(lyS>0||tmS>0)){
     addSH(f,'Vergleich Vorjahr','fu4');
     var vCard=div('card fu4','padding:18px;margin-bottom:12px');
     var diff=nf(tmS-lyS);var diffPct=lyS>0?Math.round((tmS-lyS)/lyS*100):null;
@@ -2763,10 +2767,13 @@ function rTrnd(){
     f.appendChild(vCard);
   }
 
-  // Heatmap
-  addSH(f,'365-Tage Übersicht','fu5');
-  var hmCard=div('card fu5','padding:14px 16px 10px;overflow-x:auto;margin-bottom:12px');
-  var hmDiv=div('');hmCard.appendChild(hmDiv);f.appendChild(hmCard);
+  // Heatmap — Detailansicht, in Kompakt-Modus ausgeblendet
+  var hmDiv=null;
+  if(!S.kompaktAnsicht){
+    addSH(f,'365-Tage Übersicht','fu5');
+    var hmCard=div('card fu5','padding:14px 16px 10px;overflow-x:auto;margin-bottom:12px');
+    hmDiv=div('');hmCard.appendChild(hmDiv);f.appendChild(hmCard);
+  }
 
   var tdb=el('tdb');
   var oldT=tdb.firstChild;var wrapT=document.createElement('div');wrapT.appendChild(f);
@@ -3053,7 +3060,14 @@ function rSet(){
   var avRow=div('row','cursor:default');
   avRow.innerHTML='<div class="ric" style="background:var(--blb)">⊞</div><div class="rb"><div class="rl">Kompakt-Ansicht</div><div class="rs">Weniger Kacheln, größere Werte</div></div>';
   var avL=document.createElement('label');avL.className='tog';var avI=document.createElement('input');avI.type='checkbox';avI.checked=!!S.kompaktAnsicht;
-  avI.onchange=function(){S.kompaktAnsicht=this.checked;svS();if(curTab==='home')rHome();toast(this.checked?'Kompakt-Ansicht aktiv':'Normale Ansicht');};
+  avI.onchange=function(){
+    S.kompaktAnsicht=this.checked;svS();
+    if(curTab==='home')rHome();
+    else if(curTab==='src')rSrc();
+    else if(curTab==='trnd')rTrnd();
+    else if(curTab==='wthr')rWthr();
+    toast(this.checked?'Kompakt-Ansicht aktiv':'Normale Ansicht');
+  };
   avL.appendChild(avI);avL.appendChild(div('tog-tr'));avL.appendChild(div('tog-th'));avRow.appendChild(avL);avCard.appendChild(avRow);
   avCard.appendChild(sepEl());
   var cpRow=div('row','cursor:default');
@@ -3211,8 +3225,8 @@ function renderWeather(cont,d){
     var item=div('hc-item','cursor:default');item.innerHTML='<div class="hc-v">'+m.ic+' '+m.v+'</div><div class="hc-l">'+m.l+'</div>';metaRow.appendChild(item);
   });hc.appendChild(metaRow);f.appendChild(hc);
 
-  // Solar radiation today (hourly)
-  if(hourly&&hourly.direct_radiation){
+  // Solar radiation today (hourly) — Detailansicht, in Kompakt-Modus ausgeblendet
+  if(!S.kompaktAnsicht&&hourly&&hourly.direct_radiation){
     var now=new Date(),nowH=now.getHours();
     var todayRad=hourly.direct_radiation.slice(0,24);
     var maxRad=Math.max.apply(null,todayRad.concat([1]));
@@ -3259,8 +3273,8 @@ function renderWeather(cont,d){
     f.appendChild(fcCard);
   }
 
-  // 7-day forecast
-  if(daily&&daily.weather_code){
+  // 7-day forecast — Detailansicht, in Kompakt-Modus ausgeblendet
+  if(!S.kompaktAnsicht&&daily&&daily.weather_code){
     var dayNames=['So','Mo','Di','Mi','Do','Fr','Sa'];
     var fCard=div('card','overflow:hidden;margin-bottom:12px');
     daily.weather_code.forEach(function(wc,i){
