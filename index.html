@@ -554,7 +554,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 11:53';
+var APP_VERSION='v1.0 - 2026-06-21 11:55';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1012,7 +1012,11 @@ function piBridgeIsStale(dev){
   var d=piBridgeLive[dev];
   return !d||!d._ts||(Date.now()-d._ts>PI_BRIDGE_STALE_MS);
 }
+var PI_BRIDGE_FETCH_MIN_MS=20000; // Pi pusht eh nur alle ~20s — häufiger abfragen bringt nichts, kostet nur Requests
+var piBridgeLastFetch=0;
 function fetchPiBridge(){
+  if(Date.now()-piBridgeLastFetch<PI_BRIDGE_FETCH_MIN_MS)return;
+  piBridgeLastFetch=Date.now();
   fetch('https://yhvosmgioggkgimqnmqp.supabase.co/rest/v1/pi_bridge_live?select=device,data,updated_at',{
     headers:{'apikey':VOLTLI_KEY,'Authorization':'Bearer '+VOLTLI_KEY}
   }).then(function(r){return r.json();}).then(function(rows){
