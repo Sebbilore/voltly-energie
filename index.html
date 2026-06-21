@@ -554,7 +554,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 13:48';
+var APP_VERSION='v1.0 - 2026-06-21 13:50';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1620,6 +1620,21 @@ function setSrc(s){S.activeSrc=s;svS();rHome();}
 function openCo(){el('co-p').value=S.strompreis;el('co-e').value=S.einspeise;el('co-c').value=S.currency||'EUR';showOv('co');}
 
 /* ── Chart helper ── */
+// Chart als PNG teilen (Web Share API) oder herunterladen (Fallback)
+function shareChartImage(id){
+  var chart=CH[id];if(!chart){toast('Chart nicht verfügbar');return;}
+  var dataUrl=chart.toBase64Image('image/png',2);
+  var filename='voltly-chart-'+today()+'.png';
+  fetch(dataUrl).then(function(r){return r.blob();}).then(function(blob){
+    var file=new File([blob],filename,{type:'image/png'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:'Voltly Chart'}).catch(function(){});
+    } else {
+      var a=document.createElement('a');a.href=dataUrl;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);
+      toast('Chart als Bild gespeichert ✓');
+    }
+  }).catch(function(){toast('Export fehlgeschlagen');});
+}
 function mkCH(id,type,labels,datasets,extra){
   var ctx=el(id);if(!ctx)return;
   // Update-in-place statt destroy+recreate, wenn die Chart-Instanz noch an genau diesem
@@ -1651,7 +1666,7 @@ function mkCH(id,type,labels,datasets,extra){
   zBar.className='zoom-ctrl';
   zBar.style.cssText='display:flex;justify-content:flex-end;gap:4px;margin-top:4px;';
   var btnStyle='background:var(--card);border:1px solid rgba(0,0,0,.1);border-radius:8px;padding:3px 10px;font-size:14px;cursor:pointer;color:var(--t1);line-height:1.4;';
-  [['−',function(){CH[id]&&CH[id].zoom(0.8);}],['↺',function(){CH[id]&&CH[id].resetZoom();}],['+',function(){CH[id]&&CH[id].zoom(1.25);}]].forEach(function(b){
+  [['−',function(){CH[id]&&CH[id].zoom(0.8);}],['↺',function(){CH[id]&&CH[id].resetZoom();}],['+',function(){CH[id]&&CH[id].zoom(1.25);}],['📤',function(){shareChartImage(id);}]].forEach(function(b){
     var btn=document.createElement('button');
     btn.textContent=b[0];btn.style.cssText=btnStyle;
     btn.onclick=b[1];
