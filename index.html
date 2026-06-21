@@ -554,13 +554,13 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 13:50';
+var APP_VERSION='v1.0 - 2026-06-21 13:53';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
   strompreis:0.32, einspeise:0.082, currency:'EUR',
   autoFetch:true, fetchSec:3, activeSrc:'combined', chartPeriod:'week', darkMode:'auto',
-  notifications:false, morgenBriefing:false, anschaffung:0, monatsZiel:0, autarkieZiel:0,
+  notifications:false, morgenBriefing:false, anschaffung:0, monatsZiel:0, autarkieZiel:0, _tourDone:false,
   akkuKapazitaet:2.56, co2Faktor:350, socAlarmLow:20, socAlarmHigh:90,
   kompaktAnsicht:false, wetterPLZ:'', wetterLat:null, wetterLon:null,
   sharePins:[], guestPerms:{showCharts:true,showHistory:true,showLive:true},
@@ -832,6 +832,7 @@ function bootApp(d) {
       el('ls').style.display='none';el('app').style.display='block';
       if(S.marstekToken) schedFetch();
       go(_tabParam||'home');
+      if(!S._tourDone)setTimeout(showAppTour,400);
     });
     return;
   }
@@ -841,6 +842,7 @@ function bootApp(d) {
   if(d) startDemo();
   if(!d&&S.notifications&&'Notification' in window&&Notification.permission==='granted')subscribeForPush();
   go(_tabParam||'home');
+  if(!d&&!guestMode&&!S._tourDone)setTimeout(showAppTour,400);
 }
 
 function showPlzOnboarding(done){
@@ -877,6 +879,41 @@ function showPlzOnboarding(done){
   card.appendChild(inp);card.appendChild(btnOk);card.appendChild(btnSkip);
   lw.appendChild(card);
   inp.focus();
+}
+
+/* ── Erstnutzer-Tour ── */
+function showAppTour(){
+  var steps=[
+    {ic:'☀️',t:'Übersicht',d:'Dein Energiefluss live auf einen Blick — Solar, Akku und Netz in Echtzeit.'},
+    {ic:'⚡',t:'Quellen',d:'Alle verbundenen Geräte im Detail: Wechselrichter, Akku, Wallbox, Stromzähler.'},
+    {ic:'📈',t:'Trend',d:'Verlauf über Zeit, Jahresvergleich, Ziele und Rendite deiner Anlage.'},
+    {ic:'🌤️',t:'Wetter',d:'Solar-Ertragsprognose und Strompreis — am besten dann laden, wenn beides günstig ist.'},
+    {ic:'⚙️',t:'Einstellungen',d:'Hier verbindest du weitere Geräte (Wechselrichter, Wallbox, Pi-Bridge) und passt Voltly an.'}
+  ];
+  var i=0;
+  var ov=div('','position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px');
+  var card=div('','background:var(--card);border-radius:24px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)');
+  var content=div('');
+  var dots=div('','display:flex;justify-content:center;gap:6px;margin:18px 0');
+  var btnRow=div('','display:flex;gap:10px');
+  var btnSkip=document.createElement('button');btnSkip.className='btn b-gh';btnSkip.style.cssText='flex:1;font-size:13px';btnSkip.textContent='Überspringen';
+  var btnNext=document.createElement('button');btnNext.className='btn b-or';btnNext.style.cssText='flex:1';btnNext.textContent='Weiter';
+  function render(){
+    var s=steps[i];
+    content.innerHTML='<div style="font-size:48px;margin-bottom:14px">'+s.ic+'</div>'
+      +'<div style="font-size:20px;font-weight:800;letter-spacing:-.4px;margin-bottom:8px">'+s.t+'</div>'
+      +'<div style="font-size:14px;color:var(--t3);line-height:1.6">'+s.d+'</div>';
+    dots.innerHTML='';
+    steps.forEach(function(_,j){var d=document.createElement('div');d.style.cssText='width:'+(j===i?'18px':'6px')+';height:6px;border-radius:3px;background:'+(j===i?'var(--or)':'var(--sep2)')+';transition:all .25s';dots.appendChild(d);});
+    btnNext.textContent=i===steps.length-1?'Los geht\'s!':'Weiter';
+  }
+  function close(){S._tourDone=true;svS();if(ov.parentNode)ov.parentNode.removeChild(ov);}
+  btnNext.onclick=function(){if(i<steps.length-1){i++;render();}else close();};
+  btnSkip.onclick=close;
+  btnRow.appendChild(btnSkip);btnRow.appendChild(btnNext);
+  card.appendChild(content);card.appendChild(dots);card.appendChild(btnRow);
+  ov.appendChild(card);document.body.appendChild(ov);
+  render();
 }
 
 /* ── Tabs ── */
