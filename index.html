@@ -554,13 +554,13 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 13:46';
+var APP_VERSION='v1.0 - 2026-06-21 13:48';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
   strompreis:0.32, einspeise:0.082, currency:'EUR',
   autoFetch:true, fetchSec:3, activeSrc:'combined', chartPeriod:'week', darkMode:'auto',
-  notifications:false, morgenBriefing:false, anschaffung:0, monatsZiel:0,
+  notifications:false, morgenBriefing:false, anschaffung:0, monatsZiel:0, autarkieZiel:0,
   akkuKapazitaet:2.56, co2Faktor:350, socAlarmLow:20, socAlarmHigh:90,
   kompaktAnsicht:false, wetterPLZ:'', wetterLat:null, wetterLon:null,
   sharePins:[], guestPerms:{showCharts:true,showHistory:true,showLive:true},
@@ -2275,6 +2275,22 @@ function rHome(){
         :'<div style="font-size:12px;color:var(--gr);margin-top:6px">✅ Monatsziel erreicht!</div>');
     f.appendChild(zCard);
   }
+  // Jahresziel Autarkie — Eigenverbrauch (Solar+Akku) ÷ Gesamtverbrauch (Solar+Akku+Netz), aus echten Tageswerten
+  if(S.autarkieZiel>0){
+    var yKey=today().slice(0,4);
+    var ySol=0,yBat=0,yGrid=0;entries.forEach(function(e){if(e.date.startsWith(yKey)){ySol+=gv(e,'solar');yBat+=gv(e,'bat');yGrid+=gv(e,'grid');}});
+    var yHaus=ySol+yBat+yGrid;
+    var aPct=yHaus>0?Math.min(100,Math.round((ySol+yBat)/yHaus*100)):0;
+    var aCard=div('card fu3','padding:14px 18px;margin-bottom:12px');
+    aCard.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +'<div style="font-size:14px;font-weight:600">🎯 Jahresziel Autarkie</div>'
+      +'<div style="font-size:13px;color:var(--bl);font-weight:700">'+aPct+'% / '+S.autarkieZiel+'%</div></div>'
+      +'<div style="height:8px;background:var(--f2);border-radius:6px;overflow:hidden">'
+      +'<div style="height:8px;width:'+Math.min(100,Math.round(aPct/S.autarkieZiel*100))+'%;background:'+(aPct>=S.autarkieZiel?'var(--gr)':'var(--bl)')+';border-radius:6px;transition:width .6s"></div></div>'
+      +(aPct<S.autarkieZiel?'<div style="font-size:12px;color:var(--t3);margin-top:6px">Noch '+(S.autarkieZiel-aPct)+'%-Punkte bis zum Jahresziel '+yKey+'</div>'
+        :'<div style="font-size:12px;color:var(--gr);margin-top:6px">✅ Autarkie-Ziel erreicht!</div>');
+    f.appendChild(aCard);
+  }
 
   f.appendChild(makeCard2([
     makeRow('☀️','var(--orb)','Solar gesamt',null,tS.toFixed(1)+' kWh','var(--or)',false,function(){showTip('Jahresprognose: '+(entries.length?(tSv/entries.length*365).toFixed(0):0)+' '+cur+'/Jahr');}),
@@ -2928,7 +2944,8 @@ function rSet(){
   var ziCard=div('card fu3');
   var ziRows=[
     {label:'Anschaffungskosten',key:'anschaffung',unit:cur,placeholder:'z.B. 1500'},
-    {label:'Monatsziel Solar',key:'monatsZiel',unit:'kWh',placeholder:'z.B. 80'}
+    {label:'Monatsziel Solar',key:'monatsZiel',unit:'kWh',placeholder:'z.B. 80'},
+    {label:'Jahresziel Autarkie',key:'autarkieZiel',unit:'%',placeholder:'z.B. 80'}
   ];
   ziRows.forEach(function(z,i){
     if(i>0)ziCard.appendChild(sepEl());
