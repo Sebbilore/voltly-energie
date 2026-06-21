@@ -554,7 +554,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 11:55';
+var APP_VERSION='v1.0 - 2026-06-21 11:58';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -995,11 +995,13 @@ function schedFetch(){
   if(S.foxessEnabled&&S.foxessApiKey&&S.foxessDeviceSn)fetchFoxESS(true);
   if(S.solakonEnabled&&S.solakonRefreshToken)fetchSolakon(true);
   fetchPiBridge();
+  checkAwattarPrice();
   fi=setInterval(function(){
     if(S.marstekToken){fetchMarstek(true);fetchCT002Local(true);}
     if(S.foxessEnabled&&S.foxessApiKey&&S.foxessDeviceSn)fetchFoxESS(true);
     if(S.solakonEnabled&&S.solakonRefreshToken)fetchSolakon(true);
     fetchPiBridge();
+    checkAwattarPrice();
   },(S.fetchSec||5)*1000);
 }
 
@@ -1932,6 +1934,20 @@ function renderAwattar(cont,d){
       +'<div style="font-size:28px;font-weight:700;color:'+priceColor+';letter-spacing:-.5px">'+curPrice.toFixed(1)+'<span style="font-size:13px;font-weight:400"> ct/kWh</span></div></div>'
       +'<div style="font-size:13px;font-weight:600;color:'+priceColor+'">'+priceLabel+'</div>';
     card.appendChild(curRow);
+    // Aktive Lade-Empfehlung: jetzt günstig laden, oder auf nächstes günstiges Fenster warten
+    var future=prices.filter(function(p){return p.start_timestamp>now;});
+    var nextCheap=future.length?future.slice().sort(function(a,b){return a.marketprice-b.marketprice;})[0]:null;
+    var recRow=div('','display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:var(--f2);margin-bottom:12px');
+    if(isNowCheap){
+      recRow.innerHTML='<span style="font-size:18px">💡</span><span style="font-size:13px;color:var(--t2);font-weight:500">Jetzt günstig — Verbraucher/Laden jetzt einschalten!</span>';
+    } else if(nextCheap){
+      var nh=new Date(nextCheap.start_timestamp).getHours();
+      var savingPct=Math.round((1-nextCheap.marketprice/cur.marketprice)*100);
+      recRow.innerHTML='<span style="font-size:18px">⏰</span><span style="font-size:13px;color:var(--t2);font-weight:500">Günstigster Zeitpunkt heute: <b>'+nh+':00</b> ('+(nextCheap.marketprice/10).toFixed(1)+' ct/kWh'+(savingPct>0?', '+savingPct+'% günstiger':'')+')</span>';
+    } else {
+      recRow.innerHTML='<span style="font-size:18px">✅</span><span style="font-size:13px;color:var(--t2);font-weight:500">Kein günstigeres Fenster mehr heute — jetzt ist okay.</span>';
+    }
+    card.appendChild(recRow);
   }
   var range=maxP-minP||1;
   var bars=div('','display:flex;align-items:flex-end;gap:1px;height:44px');
@@ -3075,7 +3091,27 @@ function rSet(){
 /* ══════ WETTER ══════ */
 var weatherCache=null, weatherFetchTs=0;
 var awattarCache=null, awattarFetchTs=0;
-var notifSent={full:false,low:false};
+var notifSent={full:false,low:false,cheapPrice:false};
+// Prüft Awattar-Preis im Hintergrund und benachrichtigt einmalig, wenn's günstig wird
+function checkAwattarPrice(){
+  if(!S.notifications)return;
+  fetchAwattar(function(d){
+    if(!d||!d.data||!d.data.length)return;
+    var now=Date.now();
+    var prices=d.data;
+    var cur=prices.find(function(p){return p.start_timestamp<=now&&p.end_timestamp>now;});
+    if(!cur)return;
+    var sorted=prices.slice().sort(function(a,b){return a.marketprice-b.marketprice;});
+    var cheapTs=sorted.slice(0,3).map(function(p){return p.start_timestamp;});
+    var isNowCheap=cheapTs.indexOf(cur.start_timestamp)>=0;
+    if(isNowCheap&&!notifSent.cheapPrice){
+      notifSent.cheapPrice=true;
+      sendNotif('💡 Strompreis günstig','Jetzt nur '+(cur.marketprice/10).toFixed(1)+' ct/kWh — guter Zeitpunkt zum Laden');
+    } else if(!isNowCheap){
+      notifSent.cheapPrice=false;
+    }
+  });
+}
 var ct002Local=null; // Live-Daten vom lokalen FastAPI-Server
 var WMO={0:'☀️ Klar',1:'🌤 Überwiegend klar',2:'⛅ Teilweise bewölkt',3:'☁️ Bewölkt',
   45:'🌫 Nebel',48:'🌫 Eis-Nebel',51:'🌦 Leichter Niesel',53:'🌦 Niesel',55:'🌦 Starker Niesel',
