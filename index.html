@@ -554,7 +554,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 12:01';
+var APP_VERSION='v1.0 - 2026-06-21 12:04';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -3232,6 +3232,31 @@ function renderWeather(cont,d){
       +'<span style="font-size:13px;color:var(--t3)">Aktuell: <b style="color:var(--or)">'+(todayRad[nowH]||0)+' W/m²</b></span>'
       +'</div>';
     f.appendChild(radCard);
+  }
+
+  // Solar-Ertragsprognose (nächste 3 Tage) — Sonnenstunden-Vorhersage × historischer Ø-Ertrag/Sonnenstunde
+  var fcEntries=ae();
+  if(daily&&daily.sunshine_duration&&fcEntries.length>3){
+    var avgSolFc=fcEntries.reduce(function(s,e){return s+gv(e,'solar');},0)/fcEntries.length;
+    var fcDayNames=['So','Mo','Di','Mi','Do','Fr','Sa'];
+    var fcCard=div('card','padding:16px 18px;margin-bottom:12px');
+    fcCard.innerHTML='<div style="font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🔮 Solar-Ertragsprognose</div>';
+    var fcRow=div('','display:flex;justify-content:space-around;gap:10px');
+    for(var fi=0;fi<Math.min(3,daily.sunshine_duration.length);fi++){
+      var fcSunH=Math.round(daily.sunshine_duration[fi]/3600);
+      var fcKwh=avgSolFc*Math.min(1.8,fcSunH/5);
+      var fcDt=new Date(daily.time[fi]);
+      var fcLbl=fi===0?'Heute':fi===1?'Morgen':fcDayNames[fcDt.getDay()];
+      var fcCol=div('','text-align:center;flex:1');
+      fcCol.innerHTML='<div style="font-size:11px;color:var(--t3);margin-bottom:4px">'+fcLbl+'</div>'
+        +'<div style="font-size:20px;margin-bottom:2px">'+wmoIc(daily.weather_code[fi])+'</div>'
+        +'<div style="font-size:15px;font-weight:700;color:var(--or)">'+fcKwh.toFixed(1)+'<span style="font-size:10px;font-weight:400"> kWh</span></div>'
+        +'<div style="font-size:10px;color:var(--t4);margin-top:2px">☀️ '+fcSunH+'h</div>';
+      fcRow.appendChild(fcCol);
+    }
+    fcCard.appendChild(fcRow);
+    var fcNote=div('','font-size:10px;color:var(--t4);margin-top:10px');fcNote.textContent='Schätzung aus deinem Ø-Ertrag/Sonnenstunde der letzten Tage — keine Garantie.';fcCard.appendChild(fcNote);
+    f.appendChild(fcCard);
   }
 
   // 7-day forecast
