@@ -554,7 +554,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 13:27';
+var APP_VERSION='v1.0 - 2026-06-21 13:46';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -839,6 +839,7 @@ function bootApp(d) {
   el('app').style.display='block';
   if(!d&&S.marstekToken) schedFetch();
   if(d) startDemo();
+  if(!d&&S.notifications&&'Notification' in window&&Notification.permission==='granted')subscribeForPush();
   go(_tabParam||'home');
 }
 
@@ -996,12 +997,14 @@ function schedFetch(){
   if(S.solakonEnabled&&S.solakonRefreshToken)fetchSolakon(true);
   fetchPiBridge();
   checkAwattarPrice();
+  pushLiveStateToServer();
   fi=setInterval(function(){
     if(S.marstekToken){fetchMarstek(true);fetchCT002Local(true);}
     if(S.foxessEnabled&&S.foxessApiKey&&S.foxessDeviceSn)fetchFoxESS(true);
     if(S.solakonEnabled&&S.solakonRefreshToken)fetchSolakon(true);
     fetchPiBridge();
     checkAwattarPrice();
+    pushLiveStateToServer();
   },(S.fetchSec||5)*1000);
 }
 
@@ -1893,6 +1896,58 @@ function checkNotifications(soc,pvW){
   if(soc<=lo&&!notifSent.low){notifSent.low=true;sendNotif('⚠️ Akku fast leer','Noch '+soc+'% — Verbraucher reduzieren');}
   else if(soc>lo+5)notifSent.low=false;
 }
+/* ── Echte Push-Benachrichtigungen (Web Push, funktionieren auch bei geschlossener App) ── */
+function urlBase64ToUint8Array(base64String){
+  var padding='='.repeat((4-base64String.length%4)%4);
+  var base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  var rawData=atob(base64);
+  var outputArray=new Uint8Array(rawData.length);
+  for(var i=0;i<rawData.length;++i)outputArray[i]=rawData.charCodeAt(i);
+  return outputArray;
+}
+function pushUserEmail(){
+  var email=(currentUser&&currentUser.email)||'';
+  return (email&&email!=='Nutzer')?email:null;
+}
+function subscribeForPush(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
+  var email=pushUserEmail();
+  if(!email){console.warn('[Push] Keine E-Mail — Subscribe übersprungen');return;}
+  navigator.serviceWorker.ready.then(function(reg){
+    return fetch(VOLTLI_EDGE+'/push',{method:'POST',headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},body:JSON.stringify({action:'vapid_key'})})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(!d.vapidPublicKey)throw new Error('Kein VAPID-Key vom Server');
+        return reg.pushManager.getSubscription().then(function(existing){
+          if(existing)return existing;
+          return reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(d.vapidPublicKey)});
+        });
+      })
+      .then(function(sub){
+        return fetch(VOLTLI_EDGE+'/push',{method:'POST',headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},body:JSON.stringify({action:'subscribe',email:email,subscription:sub.toJSON()})});
+      });
+  }).catch(function(e){console.warn('[Push] Subscribe Fehler:',e.message);});
+}
+function unsubscribeFromPush(){
+  if(!('serviceWorker' in navigator))return;
+  var email=pushUserEmail();
+  navigator.serviceWorker.ready.then(function(reg){
+    return reg.pushManager.getSubscription().then(function(sub){if(sub)return sub.unsubscribe();});
+  }).then(function(){
+    if(email)fetch(VOLTLI_EDGE+'/push',{method:'POST',headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},body:JSON.stringify({action:'unsubscribe',email:email})});
+  }).catch(function(){});
+}
+var _lastLivePushTs=0;
+function pushLiveStateToServer(){
+  if(!S.notifications)return;
+  var email=pushUserEmail();if(!email)return;
+  if(Date.now()-_lastLivePushTs<60000)return; // höchstens 1x/Minute — der Cron-Job prüft eh nur alle 5min
+  _lastLivePushTs=Date.now();
+  var lv=al();var soc=lv&&lv.battery&&lv.battery.soc;
+  if(soc==null)return;
+  fetch(VOLTLI_EDGE+'/push',{method:'POST',headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},body:JSON.stringify({action:'live',email:email,data:{soc:soc}})}).catch(function(){});
+}
+
 function sendNotif(title,body){
   if(!('Notification' in window))return;
   var ico='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>';
@@ -2915,9 +2970,15 @@ function rSet(){
     nRow.innerHTML='<div class="ric" style="background:var(--grb)">🔔</div><div class="rb"><div class="rl">Benachrichtigungen</div><div class="rs">Akku voll / fast leer / Anomalie</div></div>';
     var nL=document.createElement('label');nL.className='tog';var nI=document.createElement('input');nI.type='checkbox';nI.checked=!!S.notifications;
     nI.onchange=function(){
-      if(this.checked){Notification.requestPermission().then(function(p){S.notifications=(p==='granted');svS();toast(S.notifications?'Benachrichtigungen aktiviert ✓':'Berechtigung verweigert');rSet();});}
-      else{S.notifications=false;svS();rSet();}
+      if(this.checked){Notification.requestPermission().then(function(p){
+        S.notifications=(p==='granted');svS();
+        toast(S.notifications?'Benachrichtigungen aktiviert ✓':'Berechtigung verweigert');
+        if(S.notifications)subscribeForPush();
+        rSet();
+      });}
+      else{S.notifications=false;svS();unsubscribeFromPush();rSet();}
     };nL.appendChild(nI);nL.appendChild(div('tog-tr'));nL.appendChild(div('tog-th'));nRow.appendChild(nL);sCard.appendChild(nRow);
+    var pushNote=div('','font-size:11px;color:var(--t4);padding:8px 18px 2px');pushNote.textContent='Funktioniert auch bei geschlossener App (Akku voll/leer).';sCard.appendChild(pushNote);
     // Morgen-Briefing Toggle
     sCard.appendChild(sepEl());
     var mbRow=div('row','cursor:default');

@@ -1,4 +1,4 @@
-const CACHE = 'voltly-v1';
+const CACHE = 'voltly-v2';
 const ASSETS = ['/', '/manifest.json', '/icons/icon.svg', '/icons/icon-512.png'];
 
 self.addEventListener('install', function(e){
@@ -41,4 +41,27 @@ self.addEventListener('fetch', function(e){
   }
 
   // Alles andere (Supabase/API-Aufrufe etc.) — unangetastet ans Netz, nie cachen (Live-Daten).
+});
+
+// Echte Push-Benachrichtigung, auch wenn die App komplett geschlossen ist.
+self.addEventListener('push', function(e){
+  var payload = { title: '⚡ Voltly', body: '' };
+  try { payload = e.data.json(); } catch(err) {}
+  e.waitUntil(
+    self.registration.showNotification(payload.title || '⚡ Voltly', {
+      body: payload.body || '',
+      icon: '/icons/icon-512.png',
+      badge: '/icons/icon-512.png'
+    })
+  );
+});
+
+self.addEventListener('notificationclick', function(e){
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then(function(list){
+      for (var i=0;i<list.length;i++) { if ('focus' in list[i]) return list[i].focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow('/');
+    })
+  );
 });
