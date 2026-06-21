@@ -94,6 +94,13 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   --rdb:#2D0500;--pub:#1A0030;--tlb:#001828;
   --tb-bg:rgba(18,18,20,.95);
 }
+/* ── High-Contrast ── */
+:root[data-contrast]{--t3:#4A4A4A;--t4:#3A3A3A;--sep:#A0A0A0;--sep2:#808080;}
+@media(prefers-color-scheme:dark){
+  :root[data-contrast]:not([data-theme="light"]){--t3:#D8D8DC;--t4:#E8E8EC;--sep:#5A5A5E;--sep2:#7A7A7E;}
+}
+:root[data-theme="dark"][data-contrast]{--t3:#D8D8DC;--t4:#E8E8EC;--sep:#5A5A5E;--sep2:#7A7A7E;}
+
 /* ── Gradient card helper ── */
 .grad-card{border-radius:var(--r);overflow:hidden;margin-bottom:12px;color:#fff}
 /* ── Layout ── */
@@ -554,13 +561,14 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 13:53';
+var APP_VERSION='v1.0 - 2026-06-21 13:57';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
   strompreis:0.32, einspeise:0.082, currency:'EUR',
   autoFetch:true, fetchSec:3, activeSrc:'combined', chartPeriod:'week', darkMode:'auto',
   notifications:false, morgenBriefing:false, anschaffung:0, monatsZiel:0, autarkieZiel:0, _tourDone:false,
+  textScale:'normal', highContrast:false,
   akkuKapazitaet:2.56, co2Faktor:350, socAlarmLow:20, socAlarmHigh:90,
   kompaktAnsicht:false, wetterPLZ:'', wetterLat:null, wetterLon:null,
   sharePins:[], guestPerms:{showCharts:true,showHistory:true,showLive:true},
@@ -675,6 +683,18 @@ function applyTheme(mode){
   else if(mode==='light')root.setAttribute('data-theme','light');
   else root.removeAttribute('data-theme');
 }
+function applyTextScale(scale){
+  var z={normal:1,large:1.15,xlarge:1.3}[scale||'normal']||1;
+  document.documentElement.style.zoom=z; // unterstützt von Chrome/Edge/Safari; Firefox ignoriert es (kein Absturz)
+}
+function applyContrast(on){
+  document.documentElement.toggleAttribute('data-contrast',!!on);
+}
+function applyAllTheme(){
+  applyTheme(S.darkMode||'auto');
+  applyTextScale(S.textScale||'normal');
+  applyContrast(S.highContrast);
+}
 function ae() { return demo ? DEMO : E; }
 function al() { return demo ? DLIVE : live; }
 function gv(e, f) {
@@ -755,7 +775,7 @@ function doSignIn() {
       if(cloudS){
         S=Object.assign({},DEF,S,cloudS);
         localStorage.setItem(SK,JSON.stringify(S));
-        applyTheme(S.darkMode||'auto');
+        applyAllTheme();
         schedFetch();
         if(curTab==='home')rHome();if(curTab==='src')rSrc();if(curTab==='set')rSet();
       }
@@ -773,9 +793,9 @@ function doSignIn() {
     // Restore from Firestore in background after app started
     Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
       var cloudS=results[0], cloudAcc=results[1], rows=results[2];
-      if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch(); }
+      if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyAllTheme(); schedFetch(); }
       else restoreSettingsSb(email,function(sbS){
-        if(sbS){ S=Object.assign({},DEF,S,sbS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch();
+        if(sbS){ S=Object.assign({},DEF,S,sbS); localStorage.setItem(SK,JSON.stringify(S)); applyAllTheme(); schedFetch();
           if(curTab==='home')rHome();if(curTab==='src')rSrc();if(curTab==='set')rSet(); }
       });
       if(cloudAcc && cloudAcc.date===today()){ acc=Object.assign({eigen:0,haus:0,solar:0,bat:0,grid:0,t:0},cloudAcc); }
@@ -816,7 +836,7 @@ function doSignUp() {
 /* ── Boot App ── */
 function bootApp(d) {
   demo=d; S=ldS(); E=ldE(); ldAccLocal();
-  applyTheme(S.darkMode||'auto');
+  applyAllTheme();
   // Check for guest mode / Homescreen-Shortcut-Tab via URL param
   var _qp=new URLSearchParams(window.location.search);
   var guestPin=_qp.get('guest');
@@ -2988,7 +3008,21 @@ function rSet(){
   dmRow.innerHTML='<div class="ric" style="background:var(--f2)">'+dmIcon+'</div>'
     +'<div class="rb"><div class="rl">Darkmodus</div><div class="rs">'+dmLabel+'</div></div>';
   var dmSeg=makeSeg([['auto','Auto'],['light','Hell'],['dark','Dunkel']],S.darkMode||'auto',function(v){S.darkMode=v;svS();applyTheme(v);rSet();});
-  dmRow.appendChild(dmSeg);dmCard.appendChild(dmRow);f.appendChild(dmCard);
+  dmRow.appendChild(dmSeg);dmCard.appendChild(dmRow);
+
+  dmCard.appendChild(sepEl());
+  var tsRow=div('row','cursor:default');
+  tsRow.innerHTML='<div class="ric" style="background:var(--f2)">🔠</div><div class="rb"><div class="rl">Schriftgröße</div><div class="rs">Größere Texte für bessere Lesbarkeit</div></div>';
+  var tsSeg=makeSeg([['normal','Normal'],['large','Groß'],['xlarge','Sehr groß']],S.textScale||'normal',function(v){S.textScale=v;svS();applyTextScale(v);});
+  tsRow.appendChild(tsSeg);dmCard.appendChild(tsRow);
+
+  dmCard.appendChild(sepEl());
+  var hcRow=div('row','cursor:default');
+  hcRow.innerHTML='<div class="ric" style="background:var(--f2)">◐</div><div class="rb"><div class="rl">Hoher Kontrast</div><div class="rs">Kräftigere Farben für graue Texte/Linien</div></div>';
+  var hcL=document.createElement('label');hcL.className='tog';var hcI=document.createElement('input');hcI.type='checkbox';hcI.checked=!!S.highContrast;
+  hcI.onchange=function(){S.highContrast=this.checked;svS();applyContrast(this.checked);};
+  hcL.appendChild(hcI);hcL.appendChild(div('tog-tr'));hcL.appendChild(div('tog-th'));hcRow.appendChild(hcL);dmCard.appendChild(hcRow);
+  f.appendChild(dmCard);
 
   addSH(f,'Energiekosten','fu3');f.appendChild(makeCard2([makeRow('💡','var(--grb)','Strompreis',null,S.strompreis+' '+cur+'/kWh','var(--or)',true,openCo),makeRow('📤','var(--tlb)','Einspeisung',null,S.einspeise+' '+cur+'/kWh','var(--tl)',true,openCo),makeRow('💱','var(--blb)','Währung',null,cur,'var(--bl)',true,openCo)]));
 
@@ -3467,7 +3501,7 @@ function renderWeather(cont,d){
     shareRead(pin,function(d){
       btn.disabled=false;btn.textContent='👁 Gast-Zugang öffnen';
       if(d.error||!d.live_data){var e=el('guest-e');e.textContent='Ungültiger PIN oder keine Daten verfügbar';e.style.display='block';return;}
-      S=ldS();applyTheme(S.darkMode||'auto');
+      S=ldS();applyAllTheme();
       el('ls').style.display='none';el('app').style.display='block';
       startGuestMode(pin);go('home');
     });
@@ -3540,9 +3574,9 @@ function renderWeather(cont,d){
         bootApp(false);
         Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
           var cloudS=results[0], cloudAcc=results[1], rows=results[2];
-          if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch(); }
+          if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyAllTheme(); schedFetch(); }
           else restoreSettingsSb(user.email,function(sbS){
-            if(sbS){ S=Object.assign({},DEF,S,sbS); localStorage.setItem(SK,JSON.stringify(S)); applyTheme(S.darkMode||'auto'); schedFetch();
+            if(sbS){ S=Object.assign({},DEF,S,sbS); localStorage.setItem(SK,JSON.stringify(S)); applyAllTheme(); schedFetch();
               if(curTab==='home')rHome();if(curTab==='src')rSrc();if(curTab==='set')rSet(); }
           });
           if(cloudAcc && cloudAcc.date===today()){ acc=Object.assign({eigen:0,haus:0,solar:0,bat:0,grid:0,t:0},cloudAcc); }
