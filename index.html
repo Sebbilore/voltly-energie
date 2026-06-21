@@ -554,7 +554,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-21 11:51';
+var APP_VERSION='v1.0 - 2026-06-21 11:53';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1612,8 +1612,17 @@ function openCo(){el('co-p').value=S.strompreis;el('co-e').value=S.einspeise;el(
 
 /* ── Chart helper ── */
 function mkCH(id,type,labels,datasets,extra){
-  if(CH[id]){CH[id].destroy();delete CH[id];}
   var ctx=el(id);if(!ctx)return;
+  // Update-in-place statt destroy+recreate, wenn die Chart-Instanz noch an genau diesem
+  // (noch im DOM befindlichen) Canvas hängt — spart das komplette Neuaufbauen+Einzeichnen.
+  if(CH[id]&&CH[id].canvas===ctx&&document.contains(ctx)&&CH[id].config.type===type){
+    CH[id].data.labels=labels;
+    CH[id].data.datasets=datasets;
+    if(extra)Object.assign(CH[id].options,extra);
+    CH[id].update();
+    return;
+  }
+  if(CH[id]){CH[id].destroy();delete CH[id];}
   var multiDs=datasets&&datasets.length>1;
   var opts={responsive:true,maintainAspectRatio:false,
     interaction:{mode:'index',intersect:false},
