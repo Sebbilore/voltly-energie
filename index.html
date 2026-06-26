@@ -561,7 +561,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-26 10:43';
+var APP_VERSION='v1.0 - 2026-06-26 10:47';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1100,7 +1100,9 @@ function combinedSolarW(){
     :(S.solakonEnabled&&solakonLive&&!solakonIsStale()?solakonLive.pvW:0);
   var prW=0;
   if(!piBridgeIsStale('powerrouter')){
-    prW=parseFloat(piBridgeLive.powerrouter.solar_power_w||0);
+    // Rohwert kann negativ sein (PowerRouter nimmt Energie auf) — Solar selbst kann
+    // aber nie negativ sein, daher hier auf 0 begrenzen.
+    prW=Math.max(0,parseFloat(piBridgeLive.powerrouter.solar_power_w||0));
   }
   return foxOrSolakon+prW;
 }
