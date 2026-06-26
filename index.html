@@ -561,7 +561,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-26 11:01';
+var APP_VERSION='v1.0 - 2026-06-26 11:20';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -2453,6 +2453,18 @@ function patchSrc(){
     });
   }
 
+  var prActive=!piBridgeIsStale('powerrouter');
+  if(prActive!==!!el('pr-pv1'))return false;
+  if(prActive){
+    var prd2=piBridgeLive.powerrouter,prRaw2=prd2.raw||{},prSol2=prRaw2.solar||{},prGrid2=prRaw2.grid||{},prPlat2=prRaw2.platform||{};
+    setTxt('pr-pv1',Math.round((prSol2.voltage_string_1||0)*(prSol2.current_string_1||0)));
+    setTxt('pr-pv2',Math.round((prSol2.voltage_string_2||0)*(prSol2.current_string_2||0)));
+    setTxt('pr-g1',Math.round(prGrid2.power_w_phase_1||0));
+    setTxt('pr-g2',Math.round(prGrid2.power_w_phase_2||0));
+    setTxt('pr-total',(prd2.solar_total_kwh||0).toFixed(1));
+    setTxt('pr-temp',prPlat2.temp!=null?prPlat2.temp.toFixed(0):'—');
+  }
+
   if(!!bv!==!!el('ak-soc'))return false;
   if(bv){
     var chargeW=bv.chargeW||0,dischargeW=bv.dischargeW||0;
@@ -2746,6 +2758,30 @@ function rSrc(){
     });
     ctpCard.appendChild(ctpGrid);
     f.appendChild(ctpCard);
+  }
+
+  // PowerRouter Detailwerte (PV-Strings, Netzanschluss, Temperatur)
+  if(!piBridgeIsStale('powerrouter')){
+    var prd=piBridgeLive.powerrouter,prRaw=prd.raw||{},prSol=prRaw.solar||{},prGrid=prRaw.grid||{},prPlat=prRaw.platform||{};
+    var prCard=div('card fu1','margin-bottom:12px');
+    var prHd=div('','font-size:12px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:14px 16px 0');prHd.textContent='☀️ PowerRouter Detail';prCard.appendChild(prHd);
+    var prGridEl=div('','display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;padding:12px 14px');
+    [['pr-pv1','PV 1',(prSol.voltage_string_1||0)*(prSol.current_string_1||0),'var(--or)','var(--orb)'],
+     ['pr-pv2','PV 2',(prSol.voltage_string_2||0)*(prSol.current_string_2||0),'var(--or)','var(--orb)'],
+     ['pr-g1','Netz L1',prGrid.power_w_phase_1||0,'var(--bl)','var(--blb)'],
+     ['pr-g2','Netz L2',prGrid.power_w_phase_2||0,'var(--bl)','var(--blb)']
+    ].forEach(function(s){
+      var t=div('','background:'+s[4]+';border-radius:12px;padding:10px 8px;text-align:center');
+      t.innerHTML='<div style="font-size:13px;font-weight:700;color:'+s[3]+';letter-spacing:-.3px"><span id="'+s[0]+'">'+Math.round(s[2])+'</span><span style="font-size:10px;opacity:.7"> W</span></div>'
+        +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+s[1]+'</div>';
+      prGridEl.appendChild(t);
+    });
+    prCard.appendChild(prGridEl);
+    var prFoot=div('','padding:0 14px 14px;display:flex;justify-content:space-between;font-size:11px;color:var(--t4)');
+    prFoot.innerHTML='<span>Ertrag gesamt: <b id="pr-total" style="color:var(--t2)">'+(prd.solar_total_kwh||0).toFixed(1)+'</b> kWh</span>'
+      +'<span>Temp: <b id="pr-temp" style="color:var(--t2)">'+(prPlat.temp!=null?prPlat.temp.toFixed(0):'—')+'</b>°C</span>';
+    prCard.appendChild(prFoot);
+    f.appendChild(prCard);
   }
 
   // SOC 24h Verlauf — Detailansicht, in Kompakt-Modus ausgeblendet
