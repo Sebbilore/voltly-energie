@@ -561,7 +561,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-06-26 10:11';
+var APP_VERSION='v1.0 - 2026-06-26 10:15';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -2433,7 +2433,8 @@ function patchSrc(){
     var _cg3=ctGridW();
     var netW=_cg3!=null?_cg3:(ct.load||0);
     var pvW2=combinedSolarW();
-    var disW2=ct.discharge||0,chW2=ct.charge||0;
+    var _mbl3=marstekBatteryLocal();
+    var disW2=_mbl3?_mbl3.discharge_w:(ct.discharge||0),chW2=_mbl3?_mbl3.charge_w:(ct.charge||0);
     var hausW2=houseBalanceW(pvW2,disW2,chW2,netW,true);
     setTxt('ctf-pv',pvW2);
     setTxt('ctf-bat',disW2>0?disW2:chW2);
@@ -2539,8 +2540,9 @@ function rSrc(){
     var _cg4=ctGridW();
     var netW=_cg4!=null?_cg4:(ct.load||0);
     var pvW2=combinedSolarW(); // Solar: FoxESS/Solakon (eine Anlage) + PowerRouter (zweite Anlage), addiert
-    var disW2=ct.discharge||0;
-    var chW2=ct.charge||0;
+    var _mbl4=marstekBatteryLocal();
+    var disW2=_mbl4?_mbl4.discharge_w:(ct.discharge||0);
+    var chW2=_mbl4?_mbl4.charge_w:(ct.charge||0);
     var hausW2=houseBalanceW(pvW2,disW2,chW2,netW,true); // Netzbezug: CT002 bevorzugt vor Cloud-Wert
     var profitToday=parseFloat(ct.profit||0);
     var tiles=[
