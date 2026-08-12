@@ -267,11 +267,13 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
 @keyframes flowL{from{stroke-dashoffset:-36}to{stroke-dashoffset:0}}
 @keyframes flowD{from{stroke-dashoffset:36}to{stroke-dashoffset:0}}
 @keyframes flowU{from{stroke-dashoffset:-36}to{stroke-dashoffset:0}}
-.fl-line{stroke-dasharray:9 9;stroke-width:2.5;fill:none;stroke-linecap:round}
-.fl-line.active-r{animation:flowR .9s linear infinite}
-.fl-line.active-l{animation:flowL .9s linear infinite}
-.fl-line.active-d{animation:flowD .9s linear infinite}
-.fl-line.active-u{animation:flowU .9s linear infinite}
+@keyframes fl-pop{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+.fl-line{stroke-dasharray:6 5;stroke-width:2.5;fill:none;stroke-linecap:round}
+.fl-line.active-r{animation:flowR .85s linear infinite}
+.fl-line.active-l{animation:flowL .85s linear infinite}
+.fl-line.active-d{animation:flowD .85s linear infinite}
+.fl-line.active-u{animation:flowU .85s linear infinite}
+.fl-node-g{transform-box:fill-box;transform-origin:center;animation:fl-pop .5s cubic-bezier(.34,1.56,.64,1) both}
 .fl-node{display:flex;flex-direction:column;align-items:center;gap:3px;position:absolute}
 .fl-ic{font-size:28px;line-height:1}
 .fl-val{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -787,7 +789,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-12 21:29';
+var APP_VERSION='v1.0 - 2026-08-12 21:35';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1601,13 +1603,13 @@ function patchHome(){
   var W=320,H=185,R=22;
   var nSol={x:160,y:48},nNet={x:40,y:130},nAku={x:280,y:130},nHaus={x:160,y:130};
   var cSol='#FF9500',cBat=socCol(lv_soc),cHaus='#AF52DE',cNet=netExport?'#34C759':'#FF3B30';
-  function fl(x1,y1,x2,y2,col,anim){return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round"'+(anim?' stroke-dasharray="7 4" class="fl-line '+anim+'"':'')+'/>';}
+  function fl(x1,y1,x2,y2,col,anim,watts){var on=!!anim;var dur=on?(watts>1200?'0.45s':watts>600?'0.62s':'0.85s'):'';var glow=on?'<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col+'" stroke-width="9" stroke-linecap="round" opacity=".09"/>':'';return glow+'<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round" opacity="'+(on?'.9':'.09')+'"'+(on?' stroke-dasharray="6 4" class="fl-line '+anim+'" style="animation-duration:'+dur+'"':'')+'/>'; }
   function fn(cx,cy,ic,val,lbl,col,above){var vY=above?(cy-R-12):(cy+R+14);var lY=above?(cy-R-2):(cy+R+25);return '<g><circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+col+'" opacity=".2"/><text x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle" font-size="18">'+ic+'</text><text x="'+cx+'" y="'+vY+'" text-anchor="middle" font-size="11" font-weight="700" fill="'+col+'">'+val+'</text><text x="'+cx+'" y="'+lY+'" text-anchor="middle" font-size="9.5" fill="#8E8E93">'+lbl+'</text></g>';}
   function mb(x1,y1,x2,y2,txt,col){var mx=(x1+x2)/2,my=(y1+y2)/2-10;var tw=txt.length*6+10;return '<rect x="'+(mx-tw/2)+'" y="'+(my-9)+'" width="'+tw+'" height="17" rx="8" fill="'+col+'" opacity=".15"/><text x="'+mx+'" y="'+(my+4)+'" text-anchor="middle" font-size="10" font-weight="700" fill="'+col+'">'+txt+'</text>';}
   var newSvg='<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
-    +fl(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'var(--sep2)',fw>10?'active-d':'')
-    +fl(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'var(--sep2)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'')
-    +fl(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10||dw>10)?cBat:'var(--sep2)',(bChW>10)?'active-r':(dw>10?'active-l':''))
+    +fl(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'rgba(255,255,255,.1)',fw>10?'active-d':'',fw)
+    +fl(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'rgba(255,255,255,.1)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'',Math.abs(lw))
+    +fl(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10||dw>10)?cBat:'rgba(255,255,255,.1)',(bChW>10)?'active-r':(dw>10?'active-l':''),bChW>10?bChW:dw)
     +(Math.abs(lw)>10?mb(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(Math.round(lw))+'W',cNet):'')
     +((bChW>10||dw>10)?mb(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10?bChW:dw)+'W',cBat):'')
     +fn(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true)
@@ -2499,16 +2501,19 @@ function rHome(){
     var cSol='#F5A623',cBat=socCol(lv_soc),cHaus='#AF52DE',cNet=netExport?'#34C759':'#FF3B30';
     var W=320,H=200,R=27;
     var nSol={x:160,y:50},nNet={x:44,y:140},nAku={x:276,y:140},nHaus={x:160,y:140};
-    function fline(x1,y1,x2,y2,col,anim){
+    function fline(x1,y1,x2,y2,col,anim,watts){
       var on=!!anim;
-      return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2
-        +'" stroke="'+col+'" stroke-width="'+(on?'2.5':'1.5')+'" stroke-linecap="round" opacity="'+(on?'.85':'.1')+'"'
-        +(on?' stroke-dasharray="6 4" class="fl-line '+anim+'"':'')+'/>';
+      var dur=on?(watts>1200?'0.45s':watts>600?'0.62s':'0.85s'):'';
+      var glow=on?'<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col+'" stroke-width="9" stroke-linecap="round" opacity=".09"/>':'';
+      return glow+'<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2
+        +'" stroke="'+col+'" stroke-width="'+(on?'2.5':'1.5')+'" stroke-linecap="round" opacity="'+(on?'.9':'.09')+'"'
+        +(on?' stroke-dasharray="6 4" class="fl-line '+anim+'" style="animation-duration:'+dur+'"':'')+'/>';
     }
-    function fnode(cx,cy,ic,val,lbl,col,above){
+    function fnode(cx,cy,ic,val,lbl,col,above,idx){
       var vY=above?(cy-R-17):(cy+R+15);
       var lY=above?(cy-R-5):(cy+R+27);
-      return '<g>'
+      var delay=(idx||0)*70+'ms';
+      return '<g class="fl-node-g" style="animation-delay:'+delay+'">'
         +'<circle cx="'+cx+'" cy="'+cy+'" r="'+(R+9)+'" fill="'+col+'" opacity=".05"/>'
         +'<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+col+'" opacity=".14"/>'
         +'<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="none" stroke="'+col+'" stroke-width="1.8" opacity=".55"/>'
@@ -2533,15 +2538,15 @@ function rHome(){
     fcHeader.appendChild(fcTitle);fcHeader.appendChild(fcBadge);flowCard.appendChild(fcHeader);
     var svgWrap=div('','overflow:visible');svgWrap.id='lv-flow';
     svgWrap.innerHTML='<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
-      +fline(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'rgba(255,255,255,.1)',fw>10?'active-d':'')
-      +fline(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'rgba(255,255,255,.1)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'')
-      +fline(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10||dw>10)?cBat:'rgba(255,255,255,.1)',(bChW>10)?'active-r':(dw>10?'active-l':''))
+      +fline(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'rgba(255,255,255,.1)',fw>10?'active-d':'',fw)
+      +fline(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'rgba(255,255,255,.1)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'',Math.abs(lw))
+      +fline(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10||dw>10)?cBat:'rgba(255,255,255,.1)',(bChW>10)?'active-r':(dw>10?'active-l':''),bChW>10?bChW:dw)
       +(Math.abs(lw)>10?midBadge(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(Math.round(lw))+'W',cNet):'')
       +((bChW>10||dw>10)?midBadge(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,Math.round(bChW>10?bChW:dw)+'W',cBat):'')
-      +fnode(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true)
-      +fnode(nNet.x,nNet.y,'⚡',Math.abs(Math.round(lw))+'W',netExport?'Einspeisung':'Netz',cNet)
-      +fnode(nHaus.x,nHaus.y,'🏠',hausW!=null?hausW+'W':'—','Haus',cHaus)
-      +fnode(nAku.x,nAku.y,'🔋',lv_soc+'%',bChW>10?'lädt':dw>10?'entlädt':'Akku',cBat)
+      +fnode(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true,0)
+      +fnode(nNet.x,nNet.y,'⚡',Math.abs(Math.round(lw))+'W',netExport?'Einspeisung':'Netz',cNet,false,1)
+      +fnode(nHaus.x,nHaus.y,'🏠',hausW!=null?hausW+'W':'—','Haus',cHaus,false,2)
+      +fnode(nAku.x,nAku.y,'🔋',lv_soc+'%',bChW>10?'lädt':dw>10?'entlädt':'Akku',cBat,false,3)
       +'</svg>';
     flowCard.appendChild(svgWrap);
     if(autarkie>0||progStr){
