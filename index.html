@@ -787,7 +787,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-12 21:23';
+var APP_VERSION='v1.0 - 2026-08-12 21:29';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1996,21 +1996,19 @@ function socRing(soc,sz,white){
   var ci=2*Math.PI*rad,fo=ci*(1-soc/100);
   var glowColor=white?'rgba(255,255,255,.4)':socCol(soc).replace(')',',0.35)').replace('rgb','rgba');
   var d=div('soc-ring-el','position:relative;width:'+sz+'px;height:'+sz+'px;flex-shrink:0');
-  var cy2=Math.round(sz/2);
-  d.innerHTML=
-    '<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="position:absolute;inset:0;transform:rotate(-90deg);filter:drop-shadow(0 0 6px '+glowColor+')">'
-    +'<circle cx="'+sz/2+'" cy="'+cy2+'" r="'+rad+'" fill="none" stroke="'+track+'" stroke-width="7"/>'
-    +'<circle cx="'+sz/2+'" cy="'+cy2+'" r="'+rad+'" fill="none" stroke="'+c+'" stroke-width="7" stroke-linecap="round"'
+  var cx2=sz/2,cy2=sz/2;
+  d.innerHTML='<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="transform:rotate(-90deg);filter:drop-shadow(0 0 6px '+glowColor+')">'
+    +'<circle cx="'+cx2+'" cy="'+cy2+'" r="'+rad+'" fill="none" stroke="'+track+'" stroke-width="7"/>'
+    +'<circle cx="'+cx2+'" cy="'+cy2+'" r="'+rad+'" fill="none" stroke="'+c+'" stroke-width="7" stroke-linecap="round"'
     +' stroke-dasharray="'+nf(ci)+'" stroke-dashoffset="'+nf(fo)+'"/>'
-    +'</svg>'
-    +'<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="position:absolute;inset:0">'
-    +'<text id="soc-pct" x="'+sz/2+'" y="'+Math.round(sz*.48)+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="'+Math.round(sz*.2)+'" font-weight="700" fill="currentColor" font-family="system-ui,-apple-system,sans-serif"'
-    +' style="color:'+(white?'#fff':c)+'">'+soc+'%</text>'
-    +'<text x="'+sz/2+'" y="'+Math.round(sz*.66)+'" text-anchor="middle" dominant-baseline="middle"'
+    +'<g transform="rotate(90 '+cx2+' '+cy2+')">'
+    +'<text id="soc-pct" x="'+cx2+'" y="'+Math.round(cy2-sz*.06)+'" text-anchor="middle" dominant-baseline="central"'
+    +' font-size="'+Math.round(sz*.2)+'" font-weight="700" fill="currentColor"'
+    +' font-family="system-ui,-apple-system,sans-serif" style="color:'+(white?'#fff':c)+'">'+soc+'%</text>'
+    +'<text x="'+cx2+'" y="'+Math.round(cy2+sz*.1)+'" text-anchor="middle" dominant-baseline="central"'
     +' font-size="'+Math.round(sz*.125)+'" fill="'+(white?'rgba(255,255,255,.6)':'rgba(142,142,154,1)')+'"'
     +' font-family="system-ui,-apple-system,sans-serif" letter-spacing="1">SOC</text>'
-    +'</svg>';
+    +'</g></svg>';
   return d;
 }
 
