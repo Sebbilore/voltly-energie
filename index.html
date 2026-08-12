@@ -115,17 +115,20 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 /* ── Tab bar ── */
 #tb{position:fixed;bottom:0;left:0;right:0;background:var(--tb-bg);
   backdrop-filter:blur(32px) saturate(180%);-webkit-backdrop-filter:blur(32px) saturate(180%);
-  border-top:.5px solid var(--sep2);
+  border-top:.5px solid rgba(255,255,255,.08);
   display:flex;align-items:center;padding-bottom:env(safe-area-inset-bottom,0);
   z-index:100;height:76px}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:3px;border:none;background:transparent;cursor:pointer;color:var(--t4);
-  font-family:inherit;transition:color .2s;padding:8px 4px 6px}
+  gap:4px;border:none;background:transparent;cursor:pointer;color:var(--t4);
+  font-family:inherit;transition:color .22s;padding:6px 4px 4px}
 .tab.on{color:var(--or)}
-.ti{font-size:22px;line-height:1;transition:transform .28s cubic-bezier(.34,1.56,.64,1),filter .2s}
-.tab.on .ti{transform:scale(1.18);filter:drop-shadow(0 0 6px rgba(245,166,35,.5))}
-.tb-l{font-size:10px;font-weight:600;letter-spacing:.2px;transition:opacity .2s}
-.tab:not(.on) .tb-l{opacity:.55}
+.ti{font-size:22px;line-height:1;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.tab.on .ti{transform:scale(1.22)}
+.ti-wrap{position:relative;display:flex;align-items:center;justify-content:center;
+  width:48px;height:32px;border-radius:16px;transition:background .2s}
+.tab.on .ti-wrap{background:rgba(245,166,35,.15)}
+.tb-l{font-size:10px;font-weight:600;letter-spacing:.3px;transition:opacity .22s}
+.tab:not(.on) .tb-l{opacity:.45}
 /* ── Cards ── */
 .card{background:var(--card);border-radius:var(--r);overflow:hidden;
   border:1px solid var(--card-border);margin-bottom:12px}
@@ -158,16 +161,16 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .hc-l{font-size:11px;color:var(--t3);margin-top:1px}
 /* ── Tiles ── */
 .tg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-.tile{background:var(--card);border-radius:var(--r);padding:16px 15px;
-  border:1px solid var(--card-border);
-  display:flex;flex-direction:column;gap:4px;cursor:pointer;
-  transition:transform .18s cubic-bezier(.34,1.4,.64,1),border-color .18s}
-.tile:active{transform:scale(.96)}
-.tile:hover{border-color:rgba(255,255,255,.12)}
-.t-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:4px}
-.t-v{font-size:26px;font-weight:700;letter-spacing:-.5px;line-height:1;font-variant-numeric:tabular-nums}
-.t-u{font-size:12px;font-weight:500;margin-left:1px;opacity:.6}
-.t-l{font-size:12px;color:var(--t3);margin-top:1px}
+.tile{background:#161619;border-radius:var(--r);padding:18px 16px 16px;
+  border:1px solid rgba(255,255,255,.06);
+  display:flex;flex-direction:column;cursor:pointer;position:relative;overflow:hidden;
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1),border-color .2s}
+.tile::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--tile-accent,transparent);border-radius:var(--r) var(--r) 0 0}
+.tile:active{transform:scale(.95)}
+.t-ic{font-size:24px;line-height:1;margin-bottom:12px}
+.t-v{font-size:30px;font-weight:800;letter-spacing:-.8px;line-height:1;font-variant-numeric:tabular-nums}
+.t-u{font-size:13px;font-weight:500;margin-left:2px;opacity:.55}
+.t-l{font-size:12px;color:var(--t3);margin-top:7px}
 .t-trend{font-size:11px;font-weight:600;margin-top:3px;opacity:.85}
 /* ── Chips ── */
 .chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;margin-bottom:14px;scrollbar-width:none}
@@ -383,11 +386,11 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <div class="scr" id="sc-wthr" style="display:none"><div class="si" id="wtb"></div></div>
   <div class="scr" id="sc-set"  style="display:none"><div class="si" id="stb"></div></div>
   <div id="tb">
-    <button class="tab on" id="bt-home"><span class="ti">&#9728;&#xFE0F;</span><span class="tb-l">&#220;bersicht</span></button>
-    <button class="tab" id="bt-src"><span class="ti">&#x26A1;</span><span class="tb-l">Quellen</span></button>
-    <button class="tab" id="bt-trnd"><span class="ti">&#x1F4C8;</span><span class="tb-l">Trend</span></button>
-    <button class="tab" id="bt-wthr"><span class="ti">&#x1F324;&#xFE0F;</span><span class="tb-l">Wetter</span></button>
-    <button class="tab" id="bt-set"><span class="ti">&#x2699;&#xFE0F;</span><span class="tb-l">Einstellungen</span></button>
+    <button class="tab on" id="bt-home"><div class="ti-wrap"><span class="ti">&#9728;&#xFE0F;</span></div><span class="tb-l">&#220;bersicht</span></button>
+    <button class="tab" id="bt-src"><div class="ti-wrap"><span class="ti">&#x26A1;</span></div><span class="tb-l">Quellen</span></button>
+    <button class="tab" id="bt-trnd"><div class="ti-wrap"><span class="ti">&#x1F4C8;</span></div><span class="tb-l">Trend</span></button>
+    <button class="tab" id="bt-wthr"><div class="ti-wrap"><span class="ti">&#x1F324;&#xFE0F;</span></div><span class="tb-l">Wetter</span></button>
+    <button class="tab" id="bt-set"><div class="ti-wrap"><span class="ti">&#x2699;&#xFE0F;</span></div><span class="tb-l">Einstellungen</span></button>
   </div>
 </div>
 
@@ -574,7 +577,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-12 15:20';
+var APP_VERSION='v1.0 - 2026-08-12 15:27';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1797,24 +1800,20 @@ function makeRow(ic,icBg,label,sub,val,valC,chevron,onclick){
 function makeCard2(rows){var c=div('card');rows.forEach(function(r,i){if(i>0)c.appendChild(sepEl());c.appendChild(r);});return c;}
 function makeTile(ic,icBg,v,u,c,l,tip,tid){
   var t=div('tile');
-  // Extract accent RGB from known CSS vars for glow/gradient
-  var accMap={
-    'var(--orb)':{'rgb':'245,166,35','hex':'#F5A623'},
-    'var(--rdb)':{'rgb':'255,59,48','hex':'#FF3B30'},
-    'var(--grb)':{'rgb':'52,199,89','hex':'#34C759'},
-    'var(--blb)':{'rgb':'100,140,255','hex':'#648CFF'},
-    'var(--pub)':{'rgb':'175,82,222','hex':'#AF52DE'},
-    'var(--tlb)':{'rgb':'90,200,250','hex':'#5AC8FA'}
+  // Map icBg CSS vars to hex accent colors
+  var hexMap={
+    'var(--orb)':'#F5A623','var(--rdb)':'#FF3B30','var(--grb)':'#34C759',
+    'var(--blb)':'#648CFF','var(--pub)':'#AF52DE','var(--tlb)':'#5AC8FA'
   };
-  var acc=accMap[icBg]||{'rgb':'245,166,35','hex':'#F5A623'};
+  // c might already be a hex/var — prefer hexMap lookup, else use c directly
+  var accentHex=hexMap[icBg]||(c.startsWith('#')?c:'#F5A623');
   var vid=tid?'id="tile-v-'+tid+'" ':'';
-  // Large gradient icon area at top, accent glow on border
-  var tileGrad='linear-gradient(160deg,rgba('+acc.rgb+',.12) 0%,rgba('+acc.rgb+',.04) 100%)';
-  var tileBorder='rgba('+acc.rgb+',.2)';
-  t.style.cssText='background:'+tileGrad+';border-color:'+tileBorder+';padding:14px 14px 16px';
-  t.innerHTML='<div style="font-size:26px;margin-bottom:10px;line-height:1">'+ic+'</div>'
-    +'<div class="t-v" style="color:'+acc.hex+';font-size:28px;font-weight:800" '+vid+'data-val="'+v+'">'+v+'<span class="t-u" style="font-size:13px;opacity:.65;margin-left:2px">'+u+'</span></div>'
-    +'<div class="t-l" style="margin-top:4px;font-size:12px;color:var(--t3)">'+l+'</div>';
+  // colored 2px accent bar at top via CSS custom property
+  t.style.setProperty('--tile-accent',accentHex);
+  t.innerHTML='<div class="t-ic">'+ic+'</div>'
+    +'<div class="t-v" style="color:'+accentHex+'" '+vid+'data-val="'+v+'">'+v
+    +'<span class="t-u">'+u+'</span></div>'
+    +'<div class="t-l">'+l+'</div>';
   var tapped=false;
   t.onclick=function(){
     if(tapped){
