@@ -574,7 +574,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-12 15:09';
+var APP_VERSION='v1.0 - 2026-08-12 15:20';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1346,11 +1346,12 @@ function patchHome(){
   var isSolar=chargeW>10;var isBatCharging=bChWp>10;
   var isCharging=isSolar||isBatCharging;var isDischarging=dischargeW>10;
   var onGrad=isCharging||isDischarging;
-  var grad=isCharging?'linear-gradient(135deg,#FF9500,#FF6B00)':isDischarging?'linear-gradient(135deg,#007AFF,#0051D4)':'';
+  var grad=isCharging?'linear-gradient(145deg,#1A1400 0%,#1A1A1E 100%)':isDischarging?'linear-gradient(145deg,#001430 0%,#1A1A1E 100%)':'linear-gradient(145deg,#141420 0%,#1A1A1E 100%)';
+  var accentGlow=isCharging?'rgba(245,166,35,.18)':isDischarging?'rgba(100,140,255,.18)':'transparent';
   // Update hero card style
-  hcard.style.background=onGrad?grad:'';
-  hcard.style.color=onGrad?'#fff':'';
-  hcard.style.boxShadow=onGrad?'0 4px 24px rgba(0,0,0,.2)':'';
+  hcard.style.background=grad;
+  hcard.style.color='';
+  hcard.style.boxShadow='0 0 0 1px var(--card-border),0 8px 32px '+accentGlow;
   // Update hero label
   var nsEl=hcard.querySelector('.hc-ns');if(nsEl)nsEl.textContent=isSolar?'☀️ Solar aktiv':isBatCharging?'⚡ Akku lädt':isDischarging?'🔋 Akku entlädt':'⏸ Akku inaktiv';
   // Update watt value (animiert)
@@ -1771,16 +1772,17 @@ function getChartData(entries,period){
 
 function socRing(soc,sz,white){
   sz=sz||84;var rad=Math.round(sz*34/84);
-  var c=white?'#fff':socCol(soc),track=white?'rgba(255,255,255,.3)':'#E5E5EA';
+  var c=white?'#fff':socCol(soc),track=white?'rgba(255,255,255,.2)':'rgba(255,255,255,.08)';
   var ci=2*Math.PI*rad,fo=ci*(1-soc/100);
+  var glowColor=white?'rgba(255,255,255,.4)':socCol(soc).replace(')',',0.35)').replace('rgb','rgba');
   var d=div('','position:relative;width:'+sz+'px;height:'+sz+'px;flex-shrink:0');
-  d.innerHTML='<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="transform:rotate(-90deg)">'
-    +'<circle cx="'+sz/2+'" cy="'+sz/2+'" r="'+rad+'" fill="none" stroke="'+track+'" stroke-width="6"/>'
-    +'<circle cx="'+sz/2+'" cy="'+sz/2+'" r="'+rad+'" fill="none" stroke="'+c+'" stroke-width="6" stroke-linecap="round"'
+  d.innerHTML='<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="transform:rotate(-90deg);filter:drop-shadow(0 0 6px '+glowColor+')">'
+    +'<circle cx="'+sz/2+'" cy="'+sz/2+'" r="'+rad+'" fill="none" stroke="'+track+'" stroke-width="7"/>'
+    +'<circle cx="'+sz/2+'" cy="'+sz/2+'" r="'+rad+'" fill="none" stroke="'+c+'" stroke-width="7" stroke-linecap="round"'
     +' stroke-dasharray="'+nf(ci)+'" stroke-dashoffset="'+nf(fo)+'"/>'
     +'</svg><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">'
     +'<span id="soc-pct" style="font-size:'+Math.round(sz*.2)+'px;font-weight:700;color:'+(white?'#fff':c)+';font-variant-numeric:tabular-nums">'+soc+'%</span>'
-    +'<span style="font-size:'+Math.round(sz*.12)+'px;color:'+(white?'rgba(255,255,255,.7)':'var(--t3)')+'">SOC</span></div>';
+    +'<span style="font-size:'+Math.round(sz*.12)+'px;color:'+(white?'rgba(255,255,255,.6)':'var(--t3)')+'">SOC</span></div>';
   return d;
 }
 
@@ -1795,8 +1797,24 @@ function makeRow(ic,icBg,label,sub,val,valC,chevron,onclick){
 function makeCard2(rows){var c=div('card');rows.forEach(function(r,i){if(i>0)c.appendChild(sepEl());c.appendChild(r);});return c;}
 function makeTile(ic,icBg,v,u,c,l,tip,tid){
   var t=div('tile');
+  // Extract accent RGB from known CSS vars for glow/gradient
+  var accMap={
+    'var(--orb)':{'rgb':'245,166,35','hex':'#F5A623'},
+    'var(--rdb)':{'rgb':'255,59,48','hex':'#FF3B30'},
+    'var(--grb)':{'rgb':'52,199,89','hex':'#34C759'},
+    'var(--blb)':{'rgb':'100,140,255','hex':'#648CFF'},
+    'var(--pub)':{'rgb':'175,82,222','hex':'#AF52DE'},
+    'var(--tlb)':{'rgb':'90,200,250','hex':'#5AC8FA'}
+  };
+  var acc=accMap[icBg]||{'rgb':'245,166,35','hex':'#F5A623'};
   var vid=tid?'id="tile-v-'+tid+'" ':'';
-  t.innerHTML='<div class="t-ic" style="background:'+icBg+'">'+ic+'</div><div class="t-v" style="color:'+c+'" '+vid+'data-val="'+v+'">'+v+'<span class="t-u">'+u+'</span></div><div class="t-l">'+l+'</div>';
+  // Large gradient icon area at top, accent glow on border
+  var tileGrad='linear-gradient(160deg,rgba('+acc.rgb+',.12) 0%,rgba('+acc.rgb+',.04) 100%)';
+  var tileBorder='rgba('+acc.rgb+',.2)';
+  t.style.cssText='background:'+tileGrad+';border-color:'+tileBorder+';padding:14px 14px 16px';
+  t.innerHTML='<div style="font-size:26px;margin-bottom:10px;line-height:1">'+ic+'</div>'
+    +'<div class="t-v" style="color:'+acc.hex+';font-size:28px;font-weight:800" '+vid+'data-val="'+v+'">'+v+'<span class="t-u" style="font-size:13px;opacity:.65;margin-left:2px">'+u+'</span></div>'
+    +'<div class="t-l" style="margin-top:4px;font-size:12px;color:var(--t3)">'+l+'</div>';
   var tapped=false;
   t.onclick=function(){
     if(tapped){
@@ -2185,41 +2203,41 @@ function rHome(){
     var isBatCharging=bChW2>10;
     var isCharging=isSolar||isBatCharging;var isDischarging=dischargeW>10;
     var onGrad=isCharging||isDischarging;
-    var grad=isCharging?'linear-gradient(135deg,#FF9500,#FF6B00)':isDischarging?'linear-gradient(135deg,#007AFF,#0051D4)':'';
+    var grad=isCharging?'linear-gradient(145deg,#1A1400 0%,#1A1A1E 100%)':isDischarging?'linear-gradient(145deg,#001430 0%,#1A1A1E 100%)':'linear-gradient(145deg,#141420 0%,#1A1A1E 100%)';
+    var accentGlow=isCharging?'rgba(245,166,35,.18)':isDischarging?'rgba(100,140,255,.18)':'transparent';
     var hcard=div('hc fu2');hcard.id='lv-hcard';
-    if(onGrad)hcard.style.cssText+='background:'+grad+';color:#fff;box-shadow:0 4px 24px rgba(0,0,0,.2)';
+    hcard.style.cssText+='background:'+grad+';box-shadow:0 0 0 1px var(--card-border),0 8px 32px '+accentGlow+';overflow:hidden';
     var ageSec=lastFetch?Math.round((Date.now()-lastFetch)/1000):null;
     var ageStr=ageSec===null?'':(ageSec<5?'gerade ✓':'vor '+(ageSec<60?ageSec+'s':Math.round(ageSec/60)+'min'));
     var fetchTsStr=lastFetch?new Date(lastFetch).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
-    var eyC=onGrad?'rgba(255,255,255,.7)':'var(--t3)';
-    var ey=div('hc-ey','color:'+eyC);
+    var ey=div('hc-ey','color:var(--t3)');
     ey.innerHTML='<span class="ldot"></span> '+(lv.source==='demo'?'Demo':'Live')+(ageStr?' &nbsp;&middot;&nbsp; <span style="opacity:.8">'+ageStr+'</span>':'')+(fetchTsStr?' &nbsp;&middot;&nbsp; <span style="opacity:.6;font-size:11px">🕐 '+fetchTsStr+'</span>':'');
     hcard.appendChild(ey);
     var top=div('','display:flex;align-items:flex-start;justify-content:space-between;gap:12px');
     var nw=div('','flex:1');
     var heroW=isSolar?pvW2:isBatCharging?bChW2:isDischarging?dischargeW:0;
-    var heroCol=onGrad?'#fff':isCharging?'var(--or)':isDischarging?'var(--bl)':'var(--t3)';
-    var nv=div('','font-size:56px;font-weight:700;letter-spacing:-2px;line-height:1;font-variant-numeric:tabular-nums;color:'+heroCol);
-    nv.innerHTML='<span id="hero-sol">'+(heroW/1000).toFixed(2)+'</span><span style="font-size:20px;font-weight:400;opacity:.7"> kW</span>';
+    var heroCol=isCharging?'var(--or)':isDischarging?'var(--bl)':'var(--t3)';
+    var heroGlow=isCharging?'0 0 20px rgba(245,166,35,.4)':isDischarging?'0 0 20px rgba(100,140,255,.4)':'none';
+    var nv=div('','font-size:60px;font-weight:800;letter-spacing:-2.5px;line-height:1;font-variant-numeric:tabular-nums;color:'+heroCol+';text-shadow:'+heroGlow);
+    nv.innerHTML='<span id="hero-sol">'+(heroW/1000).toFixed(2)+'</span><span style="font-size:22px;font-weight:400;opacity:.6;margin-left:3px"> kW</span>';
     nw.appendChild(nv);
-    var ns=div('hc-ns','font-size:14px;margin-top:6px;font-weight:500;color:'+(onGrad?'rgba(255,255,255,.85)':'var(--t3)'));
+    var ns=div('hc-ns','font-size:14px;margin-top:8px;font-weight:600;color:'+heroCol+';opacity:.85');
     ns.textContent=isSolar?'☀️ Solar aktiv':isBatCharging?'⚡ Akku lädt':isDischarging?'🔋 Akku entlädt':'⏸ Akku inaktiv';
     nw.appendChild(ns);
-    top.appendChild(nw);top.appendChild(socRing(lv_soc,96,onGrad));hcard.appendChild(top);
-    var sepC=onGrad?'rgba(255,255,255,.25)':'var(--sep)';
-    var hr=div('hc-row','border-top:.5px solid '+sepC+';margin-top:16px;padding-top:14px');
+    top.appendChild(nw);top.appendChild(socRing(lv_soc,100,false));hcard.appendChild(top);
+    var hr=div('hc-row','border-top:.5px solid var(--sep);margin-top:18px;padding-top:16px');
     var socLabel=lv_soc+'%'+(dischargeW>0?' ↓'+Math.round(dischargeW)+'W':bChW2>0?' ⚡'+Math.round(bChW2)+'W':'');
-    [{id:'hero-bat',v:socLabel,l:'Akku SOC',c:onGrad?'#fff':'var(--bl)',tip:'Ladestand.'},
-     {id:'hero-grd',v:lv_grd.toFixed(2)+' kW',l:'Netz',c:onGrad?'rgba(255,255,255,.9)':'var(--rd)',tip:'Netzbezug jetzt.'},
-     {v:nf(gv(todayE,'save')).toFixed(2)+' '+cur,l:'Heute gespart',c:onGrad?'rgba(255,255,255,.9)':'var(--gr)',tip:'Solar+Akku × Strompreis.'}
+    [{id:'hero-bat',v:socLabel,l:'Akku SOC',c:'var(--bl)',tip:'Ladestand.'},
+     {id:'hero-grd',v:lv_grd.toFixed(2)+' kW',l:'Netz',c:'var(--rd)',tip:'Netzbezug jetzt.'},
+     {v:nf(gv(todayE,'save')).toFixed(2)+' '+cur,l:'Heute gespart',c:'var(--gr)',tip:'Solar+Akku × Strompreis.'}
     ].forEach(function(s,i){
-      if(i>0){var sp=div('','width:.5px;background:'+sepC);hr.appendChild(sp);}
+      if(i>0){var sp=div('','width:.5px;background:var(--sep)');hr.appendChild(sp);}
       var item=div('hc-item');if(s.tip)item.onclick=function(){showTip(s.tip);};
       var rv=div('hc-v','color:'+s.c);if(s.id)rv.id=s.id;rv.textContent=s.v;item.appendChild(rv);
-      var rl=div('hc-l','color:'+(onGrad?'rgba(255,255,255,.6)':'var(--t3)'));rl.textContent=s.l;item.appendChild(rl);hr.appendChild(item);
+      var rl=div('hc-l');rl.textContent=s.l;item.appendChild(rl);hr.appendChild(item);
     });hcard.appendChild(hr);f.appendChild(hcard);
   } else {
-    var nc=div('','background:var(--card);border-radius:var(--r);padding:28px 20px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.05);margin-bottom:12px');nc.classList.add('fu2');
+    var nc=div('','background:var(--card);border-radius:var(--r);padding:28px 20px;text-align:center;border:1px solid var(--card-border);margin-bottom:12px');nc.classList.add('fu2');
     nc.innerHTML='<div style="font-size:44px;margin-bottom:12px">🔌</div><div style="font-size:18px;font-weight:600;margin-bottom:8px">Noch nicht verbunden</div><div style="font-size:14px;color:var(--t3);margin-bottom:20px;line-height:1.5">Verbinde deinen Marstek-Akku um Live-Daten zu sehen.</div>'
       +'<button class="btn b-or" style="width:100%;margin-bottom:10px" onclick="showOv(\'ml\')">🔋 Marstek anmelden</button>'
       +'<button class="btn b-fi" style="width:100%" id="nc-demo-btn">Demo starten</button>';
@@ -2250,43 +2268,42 @@ function rHome(){
     else if(bv2&&dw>0&&bv2.cap>0&&lv_soc>0){var rWh2=(bv2.cap/1000)*(lv_soc/100)*1000;var mL2=Math.round(rWh2/(dw/60));if(mL2>0&&mL2<2880){var un=new Date(Date.now()+mL2*60000);progStr='🌙 Reicht bis ~'+un.getHours()+':'+(un.getMinutes()<10?'0':'')+un.getMinutes()+' Uhr';}}
     // 5-node star: Solar(top) — Netz(left) — Haus(center) — Akku(right)
     // SVG viewBox 320×200, center=(160,110), nodes at fixed coords
-    var cSol='#FF9500',cBat=socCol(lv_soc),cHaus='#AF52DE',cNet=netExport?'#34C759':'#FF3B30';
-    // Node layout: Solar top-center, Netz left, Haus center, Akku right
-    // Nodes are smaller, labels sit outside the circle, no overlapping badges
-    var W=320,H=185,R=22; // R = node circle radius
-    var nSol={x:160,y:48},nNet={x:40,y:130},nAku={x:280,y:130},nHaus={x:160,y:130};
+    var cSol='#F5A623',cBat=socCol(lv_soc),cHaus='#AF52DE',cNet=netExport?'#34C759':'#FF3B30';
+    var W=320,H=195,R=26;
+    var nSol={x:160,y:50},nNet={x:42,y:138},nAku={x:278,y:138},nHaus={x:160,y:138};
     function fline(x1,y1,x2,y2,col,anim){
       return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2
-        +'" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round"'
+        +'" stroke="'+col+'" stroke-width="2" stroke-linecap="round" opacity=".7"'
         +(anim?' stroke-dasharray="7 4" class="fl-line '+anim+'"':'')+'/>';
     }
     function fnode(cx,cy,ic,val,lbl,col,above){
-      var vY=above?(cy-R-12):(cy+R+14);
-      var lY=above?(cy-R-2):(cy+R+25);
+      var vY=above?(cy-R-14):(cy+R+16);
+      var lY=above?(cy-R-3):(cy+R+27);
       return '<g>'
-        +'<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+col+'" opacity=".2"/>'
-        +'<text x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle" font-size="18">'+ic+'</text>'
-        +'<text x="'+cx+'" y="'+vY+'" text-anchor="middle" font-size="11" font-weight="700" fill="'+col+'">'+val+'</text>'
-        +'<text x="'+cx+'" y="'+lY+'" text-anchor="middle" font-size="9.5" fill="#8E8E93">'+lbl+'</text>'
+        +'<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+col+'" opacity=".15"/>'
+        +'<circle cx="'+cx+'" cy="'+cy+'" r="'+(R-4)+'" fill="'+col+'" opacity=".08"/>'
+        +'<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="none" stroke="'+col+'" stroke-width="1.5" opacity=".4"/>'
+        +'<text x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle" font-size="20">'+ic+'</text>'
+        +'<text x="'+cx+'" y="'+vY+'" text-anchor="middle" font-size="11.5" font-weight="700" fill="'+col+'">'+val+'</text>'
+        +'<text x="'+cx+'" y="'+lY+'" text-anchor="middle" font-size="9.5" fill="#6E6E7A">'+lbl+'</text>'
         +'</g>';
     }
     function midBadge(x1,y1,x2,y2,txt,col){
-      // offset badge perpendicular to line so it doesn't overlap the line itself
-      var mx=(x1+x2)/2,my=(y1+y2)/2-10;
-      var tw=txt.length*6+10;
-      return '<rect x="'+(mx-tw/2)+'" y="'+(my-9)+'" width="'+tw+'" height="17" rx="8" fill="'+col+'" opacity=".15"/>'
-        +'<text x="'+mx+'" y="'+(my+4)+'" text-anchor="middle" font-size="10" font-weight="700" fill="'+col+'">'+txt+'</text>';
+      var mx=(x1+x2)/2,my=(y1+y2)/2-12;
+      var tw=txt.length*6+12;
+      return '<rect x="'+(mx-tw/2)+'" y="'+(my-9)+'" width="'+tw+'" height="18" rx="9" fill="'+col+'" opacity=".2"/>'
+        +'<rect x="'+(mx-tw/2)+'" y="'+(my-9)+'" width="'+tw+'" height="18" rx="9" fill="none" stroke="'+col+'" stroke-width="1" opacity=".35"/>'
+        +'<text x="'+mx+'" y="'+(my+5)+'" text-anchor="middle" font-size="10" font-weight="700" fill="'+col+'">'+txt+'</text>';
     }
-    var flowCard=div('card fu3','padding:14px 14px 12px');
-    var fcTitle=div('','font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px');
-    fcTitle.textContent='Energiefluss jetzt';flowCard.appendChild(fcTitle);
+    var flowCard=div('card fu3','padding:16px 14px 14px;background:linear-gradient(160deg,#141420 0%,#1A1A1E 100%);border-color:rgba(255,255,255,.08)');
+    var fcTitle=div('','font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px');
+    fcTitle.textContent='⚡ Energiefluss jetzt';flowCard.appendChild(fcTitle);
     var svgWrap=div('','overflow:visible');svgWrap.id='lv-flow';
     // line endpoints stop at circle edge
     svgWrap.innerHTML='<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
-      // lines between node edges
-      +fline(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'var(--sep2)',fw>10?'active-d':'')
-      +fline(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'var(--sep2)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'')
-      +fline(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10||dw>10)?cBat:'var(--sep2)',(bChW>10)?'active-r':(dw>10?'active-l':''))
+      +fline(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'rgba(255,255,255,.1)',fw>10?'active-d':'')
+      +fline(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'rgba(255,255,255,.1)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'')
+      +fline(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10||dw>10)?cBat:'rgba(255,255,255,.1)',(bChW>10)?'active-r':(dw>10?'active-l':''))
       // watt badges at midpoint (only horizontal lines to avoid overlap with node labels)
       +(Math.abs(lw)>10?midBadge(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(Math.round(lw))+'W',cNet):'')
       +((bChW>10||dw>10)?midBadge(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10?bChW:dw)+'W',cBat):'')
@@ -2622,7 +2639,7 @@ function rSrc(){
   }
 
   /* ── 2. Akku — Blaues Gradient-Banner ── */
-  var akBanner=div('grad-card fu2','background:linear-gradient(135deg,#007AFF,#0051D4);padding:20px;margin-bottom:12px');
+  var akBanner=div('grad-card fu2','background:linear-gradient(145deg,#001A3A 0%,#002560 60%,#001A3A 100%);border:1px solid rgba(100,140,255,.2);padding:20px;margin-bottom:12px;box-shadow:0 8px 32px rgba(100,140,255,.15)');
   if(bv){
     var chargeW=bv.chargeW||0,dischargeW=bv.dischargeW||0;
     var isChg=chargeW>10,isDis=dischargeW>10;
@@ -2816,7 +2833,7 @@ function rSrc(){
   var eigenQuote=solHeute>0?Math.min(100,Math.round(eigenHeute/solHeute*100)):0;
   var autarkieHeute=hausHeute>0?Math.min(100,Math.round(eigenHeute/hausHeute*100)):0;
   var co2Banner=nf(solHeute*(S.co2Faktor||350)/1000);
-  var solBanner=div('grad-card fu4','background:linear-gradient(135deg,#FF9500,#FF6B00);padding:20px 20px 16px');
+  var solBanner=div('grad-card fu4','background:linear-gradient(145deg,#1A0D00 0%,#2A1800 60%,#1A0D00 100%);border:1px solid rgba(245,166,35,.2);padding:20px 20px 16px;box-shadow:0 8px 32px rgba(245,166,35,.12)');
   solBanner.innerHTML='<div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">☀️ Solar & Ertrag</div>';
   var solTiles=div('','display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0');
   var solRows=[['☀️','Solarertrag heute',solHeute.toFixed(2),'kWh'],['💰','Gesamt gespart',allSav.toFixed(2),cur]];
