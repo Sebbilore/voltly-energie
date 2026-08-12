@@ -787,7 +787,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-12 21:12';
+var APP_VERSION='v1.0 - 2026-08-12 21:18';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -2000,9 +2000,9 @@ function socRing(soc,sz,white){
     +'<circle cx="'+sz/2+'" cy="'+sz/2+'" r="'+rad+'" fill="none" stroke="'+track+'" stroke-width="7"/>'
     +'<circle cx="'+sz/2+'" cy="'+sz/2+'" r="'+rad+'" fill="none" stroke="'+c+'" stroke-width="7" stroke-linecap="round"'
     +' stroke-dasharray="'+nf(ci)+'" stroke-dashoffset="'+nf(fo)+'"/>'
-    +'</svg><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">'
-    +'<span id="soc-pct" style="font-size:'+Math.round(sz*.2)+'px;font-weight:700;color:'+(white?'#fff':c)+';font-variant-numeric:tabular-nums">'+soc+'%</span>'
-    +'<span style="font-size:'+Math.round(sz*.12)+'px;color:'+(white?'rgba(255,255,255,.6)':'var(--t3)')+'">SOC</span></div>';
+    +'</svg><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">'
+    +'<span id="soc-pct" style="font-size:'+Math.round(sz*.2)+'px;font-weight:700;color:'+(white?'#fff':c)+';font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.5px">'+soc+'%</span>'
+    +'<span style="font-size:'+Math.round(sz*.12)+'px;color:'+(white?'rgba(255,255,255,.6)':'var(--t3)')+';line-height:1;letter-spacing:.5px;text-transform:uppercase">SOC</span></div>';
   return d;
 }
 
@@ -2448,7 +2448,7 @@ function rHome(){
     nw.appendChild(ns);
     top.appendChild(nw);top.appendChild(socRing(lv_soc,100,false));hcard.appendChild(top);
     var hr=div('hc-row','border-top:.5px solid var(--sep);margin-top:18px;padding-top:16px');
-    var socLabel=lv_soc+'%'+(dischargeW>0?' ↓'+Math.round(dischargeW)+'W':bChW2>0?' ⚡'+Math.round(bChW2)+'W':'');
+    var socLabel=lv_soc+'%'+(bChW2>0?' ⚡':dischargeW>0?' ↓':'');
     [{id:'hero-bat',v:socLabel,l:'Akku SOC',c:'var(--bl)',tip:'Ladestand.'},
      {id:'hero-grd',v:lv_grd.toFixed(2)+' kW',l:'Netz',c:'var(--rd)',tip:'Netzbezug jetzt.'},
      {v:nf(gv(todayE,'save')).toFixed(2)+' '+cur,l:'Heute gespart',c:'var(--gr)',tip:'Solar+Akku × Strompreis.'}
