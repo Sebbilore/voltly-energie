@@ -396,6 +396,53 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
 .sh{font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--t3);padding:20px 4px 8px;display:block}
 .sh.fi{padding-top:4px}
 
+/* ── Onboarding Flow ── */
+#onb{position:fixed;inset:0;z-index:700;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+#onb.onb-out{animation:page-out .38s cubic-bezier(.4,0,.6,1) both}
+@keyframes page-out{to{opacity:0;transform:scale(1.04)}}
+.onb-slides{display:flex;flex:1;will-change:transform;transition:transform .48s cubic-bezier(.34,1.4,.64,1)}
+.onb-slide{min-width:100%;padding:env(safe-area-inset-top,52px) 32px 0;display:flex;flex-direction:column;align-items:center;text-align:center;justify-content:center}
+.onb-ic{font-size:72px;line-height:1;margin-bottom:28px;animation:logo-bounce .6s cubic-bezier(.34,1.56,.64,1) both}
+.onb-h{font-size:28px;font-weight:800;letter-spacing:-1px;margin-bottom:12px;color:var(--t);animation:fu .5s .1s cubic-bezier(.34,1.4,.64,1) both}
+.onb-p{font-size:16px;color:var(--t3);line-height:1.65;max-width:280px;animation:fu .5s .18s cubic-bezier(.34,1.4,.64,1) both}
+.onb-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:18px;animation:fu .5s .24s cubic-bezier(.34,1.4,.64,1) both}
+.onb-chip{background:var(--f2);border:1px solid var(--sep2);border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;color:var(--t2)}
+.onb-dots{display:flex;gap:8px;justify-content:center;padding:24px 0 16px;flex-shrink:0}
+.onb-dot{width:8px;height:8px;border-radius:50%;background:var(--sep2);transition:all .35s cubic-bezier(.34,1.56,.64,1)}
+.onb-dot.on{width:24px;border-radius:4px;background:var(--or)}
+.onb-btns{padding:0 24px env(safe-area-inset-bottom,32px);display:flex;flex-direction:column;gap:10px;flex-shrink:0}
+
+/* ── CO₂/Autarkie Ring charts ── */
+.ring-grid{display:flex;justify-content:space-around;align-items:flex-start;flex-wrap:wrap;gap:16px;padding:4px 0 8px}
+.ring-item{display:flex;flex-direction:column;align-items:center;gap:7px;flex:1;min-width:70px}
+.ring-svg-wrap{position:relative;width:86px;height:86px;flex-shrink:0}
+.ring-svg-wrap svg{transform:rotate(-90deg)}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.ring-val{font-size:16px;font-weight:800;line-height:1;letter-spacing:-.5px}
+.ring-sub{font-size:10px;color:var(--t3);font-weight:500}
+.ring-lbl{font-size:11px;font-weight:600;color:var(--t3);text-align:center;line-height:1.35;max-width:80px}
+@keyframes ring-draw{from{stroke-dashoffset:var(--ring-max)}to{stroke-dashoffset:var(--ring-off)}}
+.ring-arc{animation:ring-draw .9s .25s cubic-bezier(.34,1.2,.64,1) both}
+
+/* ── iOS Widget mockup ── */
+.wgt-preview-bg{background:linear-gradient(160deg,#1c2333 0%,#0f1520 100%);border-radius:24px;padding:20px 20px 24px;margin-bottom:12px;border:1px solid rgba(255,255,255,.06)}
+.wgt-row{display:flex;gap:10px;justify-content:center;margin-bottom:10px}
+.wgt-sm{width:150px;height:150px;border-radius:22px;padding:14px;background:linear-gradient(145deg,rgba(245,166,35,.18),rgba(245,166,35,.06));border:.5px solid rgba(245,166,35,.3);display:flex;flex-direction:column;justify-content:space-between;flex-shrink:0}
+.wgt-md{width:100%;height:150px;border-radius:22px;padding:14px 16px;background:linear-gradient(145deg,rgba(15,15,22,.9),rgba(26,26,30,.95));border:.5px solid rgba(255,255,255,.1);display:flex;gap:14px;align-items:center;overflow:hidden}
+.wgt-name{font-size:11px;font-weight:700;color:rgba(245,166,35,.8);text-transform:uppercase;letter-spacing:.6px}
+.wgt-big{font-size:28px;font-weight:800;letter-spacing:-1px;color:#fff;line-height:1.1}
+.wgt-unit{font-size:12px;color:rgba(255,255,255,.5);font-weight:500}
+.wgt-tag{font-size:11px;font-weight:600;padding:3px 8px;border-radius:8px;display:inline-block}
+
+/* ── Push Notification mockups ── */
+.notif-card{background:rgba(28,28,32,.96);backdrop-filter:blur(24px) saturate(180%);border-radius:16px;padding:13px 15px;margin-bottom:9px;display:flex;align-items:center;gap:12px;border:.5px solid rgba(255,255,255,.09);animation:fu .44s cubic-bezier(.34,1.4,.64,1) both}
+.notif-ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0}
+.notif-body-wrap{flex:1;min-width:0}
+.notif-app{font-size:11px;color:var(--t4);font-weight:600;margin-bottom:1px;text-transform:uppercase;letter-spacing:.4px}
+.notif-title{font-size:14px;font-weight:600;color:var(--t);margin-bottom:2px;line-height:1.3}
+.notif-msg{font-size:13px;color:var(--t3);line-height:1.4}
+.notif-time{font-size:12px;color:var(--t4);flex-shrink:0;align-self:flex-start;margin-top:1px}
+
 /* ── Reduced motion ── */
 @media(prefers-reduced-motion:reduce){
   *{animation-duration:.01ms!important;transition-duration:.01ms!important}
@@ -486,6 +533,68 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
     <button class="tab" id="bt-trnd"><div class="ti-wrap"><span class="ti">&#x1F4C8;</span></div><span class="tb-l">Trend</span></button>
     <button class="tab" id="bt-wthr"><div class="ti-wrap"><span class="ti">&#x1F324;&#xFE0F;</span></div><span class="tb-l">Wetter</span></button>
     <button class="tab" id="bt-set"><div class="ti-wrap"><span class="ti">&#x2699;&#xFE0F;</span></div><span class="tb-l">Einstellungen</span></button>
+  </div>
+</div>
+
+<!-- ══════ ONBOARDING ══════ -->
+<div id="onb" style="display:none">
+  <div class="onb-slides" id="onb-slides">
+    <!-- Slide 0: Willkommen -->
+    <div class="onb-slide">
+      <div class="onb-ic">⚡</div>
+      <div class="onb-h">Willkommen bei Voltli</div>
+      <div class="onb-p">Deine persönliche Energie-Zentrale. Solar, Akku und Verbrauch immer im Blick — auf einen Blick.</div>
+      <div class="onb-chips">
+        <span class="onb-chip">☀️ Solar</span>
+        <span class="onb-chip">🔋 Akku</span>
+        <span class="onb-chip">⚡ Wallbox</span>
+        <span class="onb-chip">📊 Trends</span>
+      </div>
+    </div>
+    <!-- Slide 1: Gerät wählen -->
+    <div class="onb-slide">
+      <div class="onb-ic">🔋</div>
+      <div class="onb-h">Dein Gerät wählen</div>
+      <div class="onb-p">Verbinde deinen Energiespeicher direkt mit Voltli. Alle großen Marken unterstützt.</div>
+      <div class="onb-chips">
+        <span class="onb-chip">Marstek Venus</span>
+        <span class="onb-chip">FoxESS M1</span>
+        <span class="onb-chip">Solakon</span>
+        <span class="onb-chip">nedap PowerRouter</span>
+      </div>
+    </div>
+    <!-- Slide 2: Pi-Bridge -->
+    <div class="onb-slide">
+      <div class="onb-ic">🍓</div>
+      <div class="onb-h">Pi-Bridge (optional)</div>
+      <div class="onb-p">Hast du einen Raspberry Pi? Verbinde lokale Geräte wie Wallbox, CT002 und PowerRouter direkt — ohne Cloud.</div>
+      <div class="onb-chips">
+        <span class="onb-chip">⚡ Wallbox</span>
+        <span class="onb-chip">🔌 CT002</span>
+        <span class="onb-chip">🔋 Lokal</span>
+      </div>
+    </div>
+    <!-- Slide 3: Los! -->
+    <div class="onb-slide">
+      <div class="onb-ic">🚀</div>
+      <div class="onb-h">Alles bereit!</div>
+      <div class="onb-p">Meld dich an oder starte einfach mit dem Demo-Modus — du kannst jederzeit alles einrichten.</div>
+      <div class="onb-chips">
+        <span class="onb-chip">🔒 Sicher</span>
+        <span class="onb-chip">☁️ Cloud-Sync</span>
+        <span class="onb-chip">📱 PWA</span>
+      </div>
+    </div>
+  </div>
+  <div class="onb-dots" id="onb-dots">
+    <div class="onb-dot on"></div>
+    <div class="onb-dot"></div>
+    <div class="onb-dot"></div>
+    <div class="onb-dot"></div>
+  </div>
+  <div class="onb-btns">
+    <button class="btn b-or" id="onb-next" style="width:100%;font-size:17px;padding:15px 24px">Weiter</button>
+    <button class="btn b-gh" id="onb-skip" style="width:100%;font-size:14px">Überspringen</button>
   </div>
 </div>
 
@@ -672,7 +781,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-12 18:03';
+var APP_VERSION='v1.0 - 2026-08-12 20:38';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -3038,7 +3147,47 @@ function rTrnd(){
   var hcard=div('hc fu');var ey=div('hc-ey');ey.textContent='Gesamtertrag seit Beginn';hcard.appendChild(ey);var hn=div('hc-n','color:var(--gr)');hn.innerHTML=cS.toFixed(1)+'<span class="hc-u"> kWh</span>';hcard.appendChild(hn);
   var hr=div('hc-row');[{v:cSv.toFixed(2)+' '+cur,l:'Gespart',c:'var(--or)',tip:'Gesamtersparnis.'},{v:cCO.toFixed(1)+' kg',l:'CO₂',c:'var(--tl)',tip:'CO₂-Einsparung: 0.401 kg/kWh.'},{v:Math.round(avgDay*365)+' '+cur,l:'Prognose/Jahr',c:'var(--pu)',tip:'Hochrechnung auf Basis des Tagesdurchschnitts.'}].forEach(function(s,i){if(i>0){var sp=div('','width:.5px;background:var(--sep)');hr.appendChild(sp);}var item=div('hc-item');item.onclick=function(){showTip(s.tip);};var rv=div('hc-v','color:'+s.c);rv.textContent=s.v;item.appendChild(rv);var rl=div('hc-l');rl.textContent=s.l;item.appendChild(rl);hr.appendChild(item);});hcard.appendChild(hr);f.appendChild(hcard);
 
+  // ── CO₂ / Autarkie Ring Dashboard ──
+  if(entries.length>0){
+    var totalSolar=0,totalGrid2=0;entries.forEach(function(e){totalSolar+=gv(e,'solar');totalGrid2+=gv(e,'grid')||0;});
+    var autarkiePct=totalSolar>0?Math.min(100,Math.round(totalSolar/(totalSolar+totalGrid2)*100)):0;
+    var co2Kg=nf(cCO);var gesp=nf(cSv);
+    var ringSection=div('card fu1','padding:16px 18px;margin-bottom:12px');
+    ringSection.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:14px">🌿 Energie-Bilanz</div>';
+    var ringGrid=div('ring-grid');
+    function makeRing(pct,max,color,valStr,unitStr,label){
+      var r=40,circ=2*Math.PI*r,off=circ-(circ*Math.min(1,pct/max));
+      var wrap=div('ring-item');
+      var svgWrap=div('ring-svg-wrap');
+      svgWrap.innerHTML='<svg viewBox="0 0 100 100" width="86" height="86">'
+        +'<circle cx="50" cy="50" r="'+r+'" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="9"/>'
+        +'<circle cx="50" cy="50" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="9" stroke-linecap="round"'
+        +' stroke-dasharray="'+circ.toFixed(1)+'" stroke-dashoffset="'+circ.toFixed(1)+'"'
+        +' class="ring-arc" style="--ring-max:'+circ.toFixed(1)+';--ring-off:'+off.toFixed(1)+'"/>'
+        +'</svg>'
+        +'<div class="ring-center"><div class="ring-val" style="color:'+color+'">'+valStr+'</div><div class="ring-sub">'+unitStr+'</div></div>';
+      wrap.appendChild(svgWrap);
+      var lbl=div('ring-lbl');lbl.textContent=label;wrap.appendChild(lbl);
+      return wrap;
+    }
+    ringGrid.appendChild(makeRing(autarkiePct,100,'var(--gr)',autarkiePct+'','%','Autarkie'));
+    ringGrid.appendChild(makeRing(co2Kg,Math.max(co2Kg,500),'var(--tl)',co2Kg.toFixed(0),'kg','CO₂ gespart'));
+    ringGrid.appendChild(makeRing(gesp,Math.max(gesp,500),'var(--or)',gesp.toFixed(0),getCur(),'Kosten gespart'));
+    if(S.autarkieZiel>0){ringGrid.appendChild(makeRing(autarkiePct,S.autarkieZiel,'var(--pu)',Math.min(100,Math.round(autarkiePct/S.autarkieZiel*100))+'','%','Ziel '+S.autarkieZiel+'%'));}
+    ringSection.appendChild(ringGrid);
+    f.appendChild(ringSection);
+  }
+
   var cc1=div('cc fu1');cc1.innerHTML='<div style="font-size:15px;font-weight:600;margin-bottom:10px">Kumulierter Ertrag</div>';cc1.appendChild(makeSeg([['day','Tage'],['week','Wochen'],['month','Monate'],['year','Jahre']],period,function(p){S.chartPeriod=p;svS();rTrnd();}));var cw1=div('cw');var cv1=document.createElement('canvas');cv1.id='ch-cum';cw1.appendChild(cv1);cc1.appendChild(cw1);f.appendChild(cc1);
+
+  // ── Jahres-Energiechart: Stacked Bar (Solar vs Netzbezug) pro Monat ──
+  if(months.length>1){
+    var monthsForChart=months.slice(-12);
+    var cc2=div('cc fu2','margin-bottom:12px');
+    cc2.innerHTML='<div style="font-size:15px;font-weight:600;margin-bottom:10px">☀️ Jahres-Energiechart</div>';
+    var cw2=div('cw');var cv2=document.createElement('canvas');cv2.id='ch-jahres';cw2.appendChild(cv2);cc2.appendChild(cw2);
+    f.appendChild(cc2);
+  }
 
   if(!S.kompaktAnsicht){
   addSH(f,'Monatsuübersicht','fu2');var mCard=div('card fu2');months.slice().reverse().forEach(function(m,i){if(i>0)mCard.appendChild(sepEl());var r=div('','padding:13px 18px');var inner=div('','display:flex;align-items:center;gap:12px');var lbl=document.createElement('span');lbl.style.cssText='font-size:14px;font-weight:600;min-width:48px;color:var(--t)';lbl.textContent=m.label;inner.appendChild(lbl);var barW=div('tbar');var barF=div('tbar-f','width:'+Math.round(m.solar/maxS*100)+'%');barW.appendChild(barF);inner.appendChild(barW);var vals=div('','text-align:right;min-width:80px');vals.innerHTML='<div style="font-size:13px;font-weight:700;color:var(--or);font-variant-numeric:tabular-nums">'+m.solar.toFixed(1)+' kWh</div><div style="font-size:12px;color:var(--gr)">+'+m.save.toFixed(2)+' '+cur+'</div>';inner.appendChild(vals);r.appendChild(inner);mCard.appendChild(r);});f.appendChild(mCard);
@@ -3131,6 +3280,20 @@ function rTrnd(){
     var cumL=cumData.map(function(e){return fS(e.date);});
     mkCH('ch-cum','line',cumL,[{label:'kWh',data:cumData.map(function(e){return e.cS;}),borderColor:'rgba(255,149,0,.9)',backgroundColor:'rgba(255,149,0,.08)',fill:true,tension:.4,pointRadius:0,borderWidth:2.5}],{scales:{x:{grid:{display:false},ticks:{color:'#8E8E93',font:{size:10},maxTicksLimit:8},border:{display:false}},y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}}}});
     if(hmDiv)renderHeatmap(hmDiv,entries);
+    // Jahres-Energiechart stacked bar
+    if(el('ch-jahres')){
+      var _mfc=months.slice(-12);
+      var _mLabels=_mfc.map(function(m){return m.label;});
+      var _mSolar=_mfc.map(function(m){return nf(m.solar);});
+      var _mGrid=_mfc.map(function(m,i){
+        var k=Object.keys(monthly).sort()[Math.max(0,Object.keys(monthly).sort().length-12+i)];
+        var gr=0;entries.forEach(function(e){if(e.date&&e.date.startsWith(k))gr+=(gv(e,'grid')||0);});return nf(gr);
+      });
+      mkCH('ch-jahres','bar',_mLabels,[
+        {label:'Solar',data:_mSolar,backgroundColor:'rgba(255,149,0,.85)',borderRadius:5,borderSkipped:false,stack:'a'},
+        {label:'Netzbezug',data:_mGrid,backgroundColor:'rgba(255,59,48,.5)',borderRadius:5,borderSkipped:false,stack:'a'}
+      ],{scales:{x:{grid:{display:false},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false},stacked:true},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false},stacked:true}},plugins:{legend:{display:true,labels:{color:'#8E8E93',font:{size:11},boxWidth:10,boxHeight:10,padding:16}}}});
+    }
   },80);
 }
 
@@ -3487,6 +3650,74 @@ function rSet(){
   }
   f.appendChild(wlCard);
 
+  /* ── iOS Widget Vorschau ── */
+  addSH(f,'📱 iOS Widget','fu9b');
+  var wgtCard=div('card fu9b','overflow:hidden');
+  var wgtInner=div('','padding:16px 18px');
+  wgtInner.innerHTML='<div style="font-size:13px;color:var(--t3);margin-bottom:14px;line-height:1.5">Füge Voltly zum iPhone-Homescreen hinzu — Safari → Teilen → Zum Home-Bildschirm</div>';
+  var wgtPrev=div('wgt-preview-bg');
+  var wgtTitleRow=div('','display:flex;align-items:center;gap:8px;margin-bottom:14px');
+  wgtTitleRow.innerHTML='<div style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#F5A623,#FF6B00);display:flex;align-items:center;justify-content:center;font-size:14px">⚡</div>'
+    +'<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.3px">Voltly Widgets</div>';
+  wgtPrev.appendChild(wgtTitleRow);
+  var wgtRowEl=div('wgt-row');
+  // Small widget
+  var wgtSmEl=div('wgt-sm');
+  wgtSmEl.innerHTML='<div class="wgt-name">Solar</div>'
+    +'<div><div class="wgt-big" id="wgt-solar-val">--</div><div class="wgt-unit">kWh heute</div></div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center">'
+    +'<span style="font-size:11px;color:rgba(255,255,255,.4)">Voltly</span>'
+    +'<span class="wgt-tag" style="background:rgba(52,199,89,.2);color:#34C759" id="wgt-soc-tag">🔋 --</span>'
+    +'</div>';
+  wgtRowEl.appendChild(wgtSmEl);
+  // Medium widget
+  var wgtMdEl=div('wgt-md');
+  wgtMdEl.innerHTML='<div style="flex:1">'
+    +'<div class="wgt-name" style="margin-bottom:6px">Energiefluss</div>'
+    +'<div class="wgt-big" id="wgt-flow-val" style="font-size:22px">-- W</div>'
+    +'<div class="wgt-unit" style="margin-top:4px">Aktuell solar</div>'
+    +'<div style="display:flex;gap:8px;margin-top:12px">'
+    +'<span class="wgt-tag" style="background:rgba(255,149,0,.2);color:#FF9500" id="wgt-solar-tag">☀️ --W</span>'
+    +'<span class="wgt-tag" style="background:rgba(52,199,89,.2);color:#34C759" id="wgt-bat-tag">🔋 --%</span>'
+    +'</div></div>';
+  wgtRowEl.appendChild(wgtMdEl);
+  wgtPrev.appendChild(wgtRowEl);
+  // update with live data if available
+  (function(){
+    var liveSol=window.lastSolarW||0;var liveSoc=window.lastSoc||0;
+    var ed=el('wgt-solar-val');if(ed)ed.textContent=(liveSol/1000).toFixed(2);
+    var st=el('wgt-soc-tag');if(st)st.textContent='🔋 '+liveSoc+'%';
+    var fw=el('wgt-flow-val');if(fw)fw.textContent=liveSol>0?liveSol+'W':'Kein Solar';
+    var sT=el('wgt-solar-tag');if(sT)sT.textContent='☀️ '+(liveSol||0)+'W';
+    var bT=el('wgt-bat-tag');if(bT)bT.textContent='🔋 '+liveSoc+'%';
+  }());
+  wgtInner.appendChild(wgtPrev);
+  wgtCard.appendChild(wgtInner);
+  f.appendChild(wgtCard);
+
+  /* ── Push-Notification Templates ── */
+  addSH(f,'🔔 Benachrichtigungen','fu9c');
+  var notifCard=div('card fu9c','padding:16px 18px');
+  notifCard.innerHTML='<div style="font-size:13px;color:var(--t3);margin-bottom:14px;line-height:1.5">So sehen Voltly-Benachrichtigungen auf deinem iPhone aus — aktiviere sie in den Einstellungen.</div>';
+  var notifColors=[
+    {bg:'var(--grb)',ic:'🔋',icBg:'rgba(52,199,89,.2)',title:'Akku voll geladen',msg:'Dein Marstek-Akku hat 100% erreicht. Jetzt Überschuss ins Netz einspeisen.',time:'Jetzt'},
+    {bg:null,ic:'☀️',icBg:'rgba(255,149,0,.2)',title:'Solar startet',msg:'Solarproduktion hat heute begonnen — 847 W Erzeugung.',time:'08:14'},
+    {bg:null,ic:'⚡',icBg:'rgba(255,59,48,.2)',title:'Hoher Netzbezug',msg:'Aktuell 2.3 kW aus dem Netz. Akku ist bei 12%.',time:'14:32'},
+    {bg:null,ic:'💡',icBg:'rgba(100,140,255,.2)',title:'Günstiger Strompreis',msg:'Jetzt nur 8.2 ct/kWh — guter Zeitpunkt zum Laden.',time:'21:00'},
+  ];
+  notifColors.forEach(function(n,i){
+    var nc=div('notif-card','animation-delay:'+(i*70)+'ms');
+    nc.innerHTML='<div class="notif-ic" style="background:'+n.icBg+'">'+n.ic+'</div>'
+      +'<div class="notif-body-wrap">'
+      +'<div class="notif-app">Voltly</div>'
+      +'<div class="notif-title">'+n.title+'</div>'
+      +'<div class="notif-msg">'+n.msg+'</div>'
+      +'</div>'
+      +'<div class="notif-time">'+n.time+'</div>';
+    notifCard.appendChild(nc);
+  });
+  f.appendChild(notifCard);
+
   /* ── Über Voltly ── */
   addSH(f,'Über Voltly','fu10');
   var aboutCard=div('card fu10');
@@ -3541,8 +3772,8 @@ function wmoTxt(c){return(WMO[c]||'Unbekannt').replace(/^[^\s]+ /,'');}
 function fetchWeather(lat,lon,cb){
   var url='https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon
     +'&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,cloud_cover,is_day,precipitation'
-    +'&hourly=temperature_2m,precipitation_probability,weather_code,direct_radiation,shortwave_radiation'
-    +'&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,sunshine_duration,precipitation_sum'
+    +'&hourly=temperature_2m,precipitation_probability,weather_code,direct_radiation,shortwave_radiation,uv_index'
+    +'&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,sunshine_duration,precipitation_sum,uv_index_max'
     +'&timezone=auto&forecast_days=7';
   fetch(url).then(function(r){return r.json();}).then(cb).catch(function(e){console.warn('Weather:',e);});
 }
@@ -3596,7 +3827,8 @@ function renderWeather(cont,d){
     +'<div style="font-size:12px;color:var(--t4);margin-top:2px">Gefühlt '+Math.round(cur.apparent_temperature)+'°</div>';
   topRow.appendChild(tcol);hc.appendChild(topRow);
   var metaRow=div('hc-row');
-  [{ic:'💧',v:cur.relative_humidity_2m+'%',l:'Luftfeuchte'},{ic:'🌬',v:Math.round(cur.wind_speed_10m)+' km/h',l:'Wind'},{ic:'☁️',v:cur.cloud_cover+'%',l:'Bewölkung'}].forEach(function(m,i){
+  var uvNow=(hourly&&hourly.uv_index)?hourly.uv_index[new Date().getHours()]||0:0;
+  [{ic:'💧',v:cur.relative_humidity_2m+'%',l:'Luftfeuchte'},{ic:'🌬',v:Math.round(cur.wind_speed_10m)+' km/h',l:'Wind'},{ic:'🌡',v:cur.cloud_cover+'%',l:'Bewölkung'},{ic:'☀️',v:'UV '+uvNow.toFixed(1),l:uvNow<3?'Gering':uvNow<6?'Mäßig':uvNow<8?'Hoch':'Sehr hoch'}].forEach(function(m,i){
     if(i>0)metaRow.appendChild(div('','width:.5px;background:var(--sep)'));
     var item=div('hc-item','cursor:default');item.innerHTML='<div class="hc-v">'+m.ic+' '+m.v+'</div><div class="hc-l">'+m.l+'</div>';metaRow.appendChild(item);
   });hc.appendChild(metaRow);f.appendChild(hc);
@@ -3647,6 +3879,38 @@ function renderWeather(cont,d){
     fcCard.appendChild(fcRow);
     var fcNote=div('','font-size:10px;color:var(--t4);margin-top:10px');fcNote.textContent='Schätzung aus deinem Ø-Ertrag/Sonnenstunde der letzten Tage — keine Garantie.';fcCard.appendChild(fcNote);
     f.appendChild(fcCard);
+    // 7-day prognose chart
+    var fc7Card=div('card','padding:16px 18px;margin-bottom:12px');
+    fc7Card.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📈 7-Tage Solarprognose</div>';
+    var fc7cw=div('cw');var fc7cv=document.createElement('canvas');fc7cv.id='ch-fc7';fc7cw.appendChild(fc7cv);fc7Card.appendChild(fc7cw);
+    // UV-Index bar row
+    if(daily.uv_index_max){
+      var uvRow2=div('','margin-top:12px');
+      uvRow2.innerHTML='<div style="font-size:11px;color:var(--t4);margin-bottom:6px;font-weight:600">UV-Index (max)</div>'
+        +'<div style="display:flex;gap:4px;align-items:flex-end;height:28px">'
+        +daily.uv_index_max.slice(0,7).map(function(uv,i){
+          var h=Math.max(8,Math.round(uv/11*100));
+          var c=uv<3?'var(--gr)':uv<6?'var(--or)':uv<8?'var(--rd)':'var(--pu)';
+          return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">'
+            +'<div style="font-size:9px;color:var(--t3);font-weight:700">'+uv.toFixed(0)+'</div>'
+            +'<div style="width:100%;max-width:28px;height:'+h+'%;background:'+c+';border-radius:3px 3px 0 0;min-height:4px"></div>'
+            +'</div>';
+        }).join('')+'</div>';
+      fc7Card.appendChild(uvRow2);
+    }
+    f.appendChild(fc7Card);
+    // draw chart after DOM
+    setTimeout(function(){
+      var fc7Labels=[];var fc7Data=[];var _dn=['So','Mo','Di','Mi','Do','Fr','Sa'];
+      for(var _fi=0;_fi<Math.min(7,daily.sunshine_duration.length);_fi++){
+        var _fcSunH2=daily.sunshine_duration[_fi]/3600;
+        var _fcKwh2=avgSolFc*Math.min(1.8,_fcSunH2/5);
+        var _fcDt2=new Date(daily.time[_fi]);
+        fc7Labels.push(_fi===0?'Heute':_fi===1?'Morgen':_dn[_fcDt2.getDay()]);
+        fc7Data.push(nf(_fcKwh2));
+      }
+      mkCH('ch-fc7','bar',fc7Labels,[{label:'Prognose kWh',data:fc7Data,backgroundColor:fc7Data.map(function(v){return v>avgSolFc*1.2?'rgba(255,149,0,.85)':v>avgSolFc*.7?'rgba(255,149,0,.55)':'rgba(255,149,0,.25)';}),borderRadius:7,borderSkipped:false}],{scales:{x:{grid:{display:false},ticks:{color:'#8E8E93',font:{size:11}},border:{display:false}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#8E8E93',font:{size:10}},border:{display:false}}},plugins:{legend:{display:false}}});
+    },80);
   }
 
   // 7-day forecast — Detailansicht, in Kompakt-Modus ausgeblendet
@@ -4046,6 +4310,51 @@ if('serviceWorker' in navigator){
     if(btn)hapticLight();
   });
 
+}());
+
+/* ══════ ONBOARDING FLOW ══════ */
+(function(){
+  var _cur=0,_total=4;
+  var slides=el('onb-slides'),dots=el('onb-dots'),nextBtn=el('onb-next'),skipBtn=el('onb-skip');
+  if(!slides)return;
+
+  function updateDots(){
+    var dotEls=dots.querySelectorAll('.onb-dot');
+    dotEls.forEach(function(d,i){d.classList.toggle('on',i===_cur);});
+    nextBtn.textContent=_cur===_total-1?'Los geht\'s 🚀':'Weiter';
+    skipBtn.style.display=_cur===_total-1?'none':'block';
+  }
+
+  function goTo(idx){
+    _cur=Math.max(0,Math.min(_total-1,idx));
+    slides.style.transform='translateX(-'+(_cur*100)+'%)';
+    updateDots();
+  }
+
+  function finish(){
+    S._tourDone=true;svS();
+    var onbEl=el('onb');
+    onbEl.classList.add('onb-out');
+    setTimeout(function(){onbEl.style.display='none';},400);
+  }
+
+  nextBtn.onclick=function(){if(_cur<_total-1){goTo(_cur+1);}else{finish();}};
+  skipBtn.onclick=finish;
+
+  // swipe support
+  var _tx0=0,_ty0=0;
+  slides.addEventListener('touchstart',function(e){_tx0=e.touches[0].clientX;_ty0=e.touches[0].clientY;},{passive:true});
+  slides.addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-_tx0,dy=e.changedTouches[0].clientY-_ty0;
+    if(Math.abs(dx)>50&&Math.abs(dy)<60){if(dx<0&&_cur<_total-1)goTo(_cur+1);else if(dx>0&&_cur>0)goTo(_cur-1);}
+  },{passive:true});
+
+  // Show onboarding if first launch
+  if(!S._tourDone&&!demo&&!currentUser){
+    el('ls').style.display='none';
+    el('onb').style.display='flex';
+    updateDots();
+  }
 }());
 </script>
 </body>
