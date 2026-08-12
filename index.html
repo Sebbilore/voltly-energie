@@ -359,33 +359,46 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
 @keyframes lp{0%{box-shadow:0 0 0 0 rgba(52,199,89,.6)}60%{box-shadow:0 0 0 6px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
 .ldot{animation:lp 1.8s ease-in-out infinite}
 /* ── Tab bar scroll-hide ── */
-#tb{transition:transform .4s cubic-bezier(.4,0,.6,1)}
+#tb{transition:transform .38s cubic-bezier(.4,0,.6,1)}
 #tb.tb-hidden{transform:translateY(110%)}
-/* ── SOC ring charging shimmer ── */
-@keyframes soc-shimmer{0%{stroke-dashoffset:0;opacity:.6}50%{opacity:1}100%{stroke-dashoffset:-250;opacity:.6}}
-.soc-charging circle:nth-child(3){animation:soc-shimmer 1.6s ease-in-out infinite!important}
-/* ── Watt value pulse on change ── */
-@keyframes num-pulse{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
-.num-pulse{animation:num-pulse .32s cubic-bezier(.34,1.56,.64,1)}
-/* ── Color echo behind tile grid ── */
-.tg-wrap{position:relative}
-.tg-wrap::before{content:'';position:absolute;inset:-20px;border-radius:40px;
-  background:var(--tg-echo,transparent);filter:blur(40px);opacity:.18;pointer-events:none;z-index:-1;
-  transition:background .6s,opacity .6s}
-/* ── Pull-to-refresh indicator ── */
-#ptr-indicator{transition:transform .35s cubic-bezier(.34,1.56,.64,1),background .3s}
-/* ── 3D card perspective ── */
-.hc{transform-style:preserve-3d}
-/* ── Hero card glow intensity ── */
-#lv-hcard{transition:box-shadow .8s ease,background .6s ease,transform .18s cubic-bezier(.34,1.56,.64,1)}
-/* ── Swipe direction hint ── */
-@keyframes swipe-hint{0%{opacity:0;transform:translateX(0)}30%{opacity:.5;transform:translateX(-8px)}100%{opacity:0;transform:translateX(0)}}
+
+/* ── PLAYFUL: Watt bounce on live update ── */
+@keyframes num-bounce{0%{transform:scale(1)}35%{transform:scale(1.08)}65%{transform:scale(.97)}100%{transform:scale(1)}}
+.num-pulse{animation:num-bounce .4s cubic-bezier(.34,1.56,.64,1)}
+
+/* ── PLAYFUL: SOC ring charging sweep ── */
+@keyframes soc-sweep{0%{stroke-dashoffset:0}100%{stroke-dashoffset:-251}}
+.soc-charging circle:nth-child(2){animation:soc-sweep 1.4s linear infinite!important}
+
+/* ── PLAYFUL: Tab icon spring bounce on press ── */
+.tab:active .ti{transform:scale(.82)!important;transition-duration:.08s!important}
+.tab.on .ti{transform:scale(1.22);filter:drop-shadow(0 0 6px rgba(245,166,35,.5))}
+
+/* ── PLAYFUL: Tile entrance wiggle ── */
+@keyframes tile-in{0%{opacity:0;transform:translateY(20px) scale(.94)}60%{transform:translateY(-4px) scale(1.02)}100%{opacity:1;transform:none}}
+.tile.anim-in{animation:tile-in .5s cubic-bezier(.34,1.56,.64,1) both}
+
+/* ── PLAYFUL: Solar sunrise on activation ── */
+@keyframes sunrise{0%{transform:scale(.4) translateY(12px);opacity:0}60%{transform:scale(1.2) translateY(-3px);opacity:1}100%{transform:scale(1) translateY(0);opacity:1}}
+.solar-on{animation:sunrise .55s cubic-bezier(.34,1.56,.64,1) both}
+
+/* ── PLAYFUL: Pull-to-refresh ── */
+#ptr-indicator{transition:transform .34s cubic-bezier(.34,1.56,.64,1),background .25s,color .25s}
+
+/* ── Hero card — smooth transitions only ── */
+#lv-hcard{transition:box-shadow .7s ease,background .5s ease}
+
+/* ── PLAYFUL: Live dot stronger pulse ── */
+@keyframes lp{0%{box-shadow:0 0 0 0 rgba(52,199,89,.7)}55%{box-shadow:0 0 0 7px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
+.ldot{animation:lp 1.6s ease-in-out infinite}
+
+/* ── SIMPLE: clean section headers ── */
+.sh{font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--t3);padding:20px 4px 8px;display:block}
+.sh.fi{padding-top:4px}
+
 /* ── Reduced motion ── */
 @media(prefers-reduced-motion:reduce){
-  .fu,.fu1,.fu2,.fu3,.fu4,.fu5,.fu6{animation:fadeIn .2s ease both}
-  .soc-ring-el circle:nth-child(2){animation:none}
-  .ov.open .sheet,.ov.open{animation:none}
-  .tile:active,.btn:active,.tab:active .ti{transition:none}
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
   #tb{transition:none}
 }
 </style>
@@ -659,7 +672,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-12 17:52';
+var APP_VERSION='v1.0 - 2026-08-12 18:03';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1202,7 +1215,8 @@ function combinedSolarW(){
   if(!piBridgeIsStale('powerrouter')){
     // Rohwert kann negativ sein (PowerRouter nimmt Energie auf) — Solar selbst kann
     // aber nie negativ sein, daher hier auf 0 begrenzen.
-    prW=Math.max(0,parseFloat(piBridgeLive.powerrouter.solar_power_w||0));
+    var _pr=piBridgeLive.powerrouter;
+    prW=Math.max(0,parseFloat(_pr.solar_power_w||_pr.power_w||_pr.pv_w||_pr.acPower||_pr.ac_power||0));
   }
   return foxOrSolakon+prW;
 }
@@ -1618,7 +1632,7 @@ function rSetGuest(){
 }
 
 function openPiBridgeSettings(){
-  var devs=[['wallbox','⚡ Wallbox (Heidelberg)'],['powerrouter','☀️ PowerRouter (nedap PR37S)'],['ct002pi','🔌 CT002 (über Pi)']];
+  var devs=[['wallbox','⚡ Wallbox (Heidelberg)'],['powerrouter','☀️ PowerRouter (nedap PR37S)'],['ct002pi','🔌 CT002 (über Pi)'],['marstek_battery','🔋 Marstek Akku (lokal)']];
   var lines=devs.map(function(d){
     var stale=piBridgeIsStale(d[0]);
     var data=piBridgeLive[d[0]];
@@ -1886,8 +1900,12 @@ function makeRow(ic,icBg,label,sub,val,valC,chevron,onclick){
   if(onclick)r.onclick=onclick;return r;
 }
 function makeCard2(rows){var c=div('card');rows.forEach(function(r,i){if(i>0)c.appendChild(sepEl());c.appendChild(r);});return c;}
+var _tileIdx=0;
+function resetTileIdx(){_tileIdx=0;}
 function makeTile(ic,icBg,v,u,c,l,tip,tid){
-  var t=div('tile');
+  var t=div('tile anim-in');
+  t.style.animationDelay=(_tileIdx*55)+'ms';
+  _tileIdx++;
   // Map icBg CSS vars to hex accent colors
   var hexMap={
     'var(--orb)':'#F5A623','var(--rdb)':'#FF3B30','var(--grb)':'#34C759',
@@ -2251,6 +2269,7 @@ function renderAwattar(cont,d){
 
 /* ══════ RENDER HOME ══════ */
 function rHome(){
+  resetTileIdx();
   var entries=ae(),lv=al();
   var todayE=null;for(var i=0;i<entries.length;i++){if(entries[i].date===today()){todayE=entries[i];break;}}
   var src=S.activeSrc||'combined';
@@ -2627,7 +2646,7 @@ function patchSrc(){
   if(_prx!==!!el('pr-pv'))return false;
   if(_prx){
     var pr=piBridgeLive.powerrouter;
-    var prW=parseFloat(pr.power_w||pr.pv_w||pr.acPower||pr.ac_power||0);
+    var prW=parseFloat(pr.solar_power_w||pr.power_w||pr.pv_w||pr.acPower||pr.ac_power||0);
     setTxt('pr-pv',Math.round(prW));
   }
 
@@ -2653,6 +2672,7 @@ function patchSrc(){
   return true;
 }
 function rSrc(){
+  resetTileIdx();
   var entries=ae(),lv=al();
   var todayE=null;for(var i=0;i<entries.length;i++){if(entries[i].date===today()){todayE=entries[i];break;}}
   var last14=entries.slice(0,14).reverse();var lb=last14.map(function(e){return fS(e.date);});
@@ -2825,7 +2845,7 @@ function rSrc(){
   // PowerRouter Banner (nedap PR37S via Pi)
   if(!piBridgeIsStale('powerrouter')){
     var pr=piBridgeLive.powerrouter;
-    var prW=parseFloat(pr.power_w||pr.pv_w||pr.acPower||pr.ac_power||0);
+    var prW=parseFloat(pr.solar_power_w||pr.power_w||pr.pv_w||pr.acPower||pr.ac_power||0);
     var prBanner=div('grad-card fu2','background:linear-gradient(135deg,#3DCC4A,#1f7a28);padding:20px;margin-bottom:12px');
     var prTop=div('','display:flex;align-items:center;justify-content:space-between;margin-bottom:12px');
     var prInfo=div('');
@@ -3176,9 +3196,9 @@ function rSet(){
   devCard.appendChild(sepEl());
   // Raspberry Pi Bridge (Wallbox/PowerRouter/CT002)
   var piRow=div('row','cursor:pointer');
-  var piOk=['wallbox','powerrouter','ct002pi'].filter(function(k){return !piBridgeIsStale(k);}).length;
+  var piOk=['wallbox','powerrouter','ct002pi','marstek_battery'].filter(function(k){return !piBridgeIsStale(k);}).length;
   var piStatus=piOk>0?'✅ '+piOk+' Gerät(e) aktiv':'Noch keine Daten — Pi einrichten';
-  var piColor=piOk>0?'var(--t3)':'var(--or)';
+  var piColor=piOk>0?'var(--gr)':'var(--or)';
   piRow.innerHTML='<div class="ric" style="background:linear-gradient(135deg,#8E8E93,#48484A)">🖥️</div>'
     +'<div class="rb"><div class="rl">Raspberry Pi Bridge</div><div class="rs" style="color:'+piColor+'">'+piStatus+'</div></div>'
     +'<span style="color:var(--t3);font-size:20px">›</span>';
@@ -3895,22 +3915,20 @@ if('serviceWorker' in navigator){
     ptr.active=false;ptr.fired=false;
   },{passive:true});
 
-  /* ── 6. 3D TILT ON HERO CARD ── */
+  /* ── 6. HERO CARD — subtle shine on hover (desktop only) ── */
   window._applyTilt=function(){
     var hcard=document.getElementById('lv-hcard');
-    if(!hcard||hcard._tilt)return;
+    if(!hcard||hcard._tilt||'ontouchstart' in window)return;
     hcard._tilt=true;
-    var isTouch='ontouchstart' in window;
-    if(isTouch)return; /* skip on touch — conflicts with scroll */
     hcard.addEventListener('pointermove',function(e){
       var r=this.getBoundingClientRect();
-      var x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
-      this.style.transition='transform .06s';
-      this.style.transform='perspective(900px) rotateX('+(y*-8)+'deg) rotateY('+(x*8)+'deg) scale(1.014)';
+      var x=((e.clientX-r.left)/r.width*100).toFixed(1);
+      var y=((e.clientY-r.top)/r.height*100).toFixed(1);
+      this.style.background=this.style.background.split(';')[0]
+        +';box-shadow: inset 0 0 60px rgba(255,255,255,.02),0 0 0 1px var(--card-border),0 8px 32px rgba(245,166,35,.1)';
     });
     hcard.addEventListener('pointerleave',function(){
-      this.style.transition='transform .55s cubic-bezier(.34,1.4,.64,1)';
-      this.style.transform='';
+      this.style.removeProperty('--shine-x');
     });
   };
 
