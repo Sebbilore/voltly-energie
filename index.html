@@ -122,13 +122,12 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   gap:4px;border:none;background:transparent;cursor:pointer;color:var(--t4);
   font-family:inherit;transition:color .22s;padding:6px 4px 4px}
 .tab.on{color:var(--or)}
-.ti{font-size:22px;line-height:1;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
-.tab.on .ti{transform:scale(1.22)}
-.ti-wrap{position:relative;display:flex;align-items:center;justify-content:center;
-  width:48px;height:32px;border-radius:16px;transition:background .2s}
-.tab.on .ti-wrap{background:rgba(245,166,35,.15)}
-.tb-l{font-size:10px;font-weight:600;letter-spacing:.3px;transition:opacity .22s}
-.tab:not(.on) .tb-l{opacity:.45}
+.ti{font-size:22px;line-height:1;transition:transform .38s cubic-bezier(.34,1.56,.64,1),filter .25s}
+.tab.on .ti{transform:scale(1.2)}
+.ti-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:48px;height:32px}
+.tb-l{font-size:10px;font-weight:600;letter-spacing:.3px;transition:color .22s,opacity .22s}
+.tab:not(.on) .tb-l{opacity:.4;color:var(--t4)}
+.tab.on .tb-l{color:var(--or)}
 /* ── Cards ── */
 .card{background:var(--card);border-radius:var(--r);overflow:hidden;
   border:1px solid var(--card-border);margin-bottom:12px}
@@ -270,16 +269,34 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .ldot{width:7px;height:7px;border-radius:50%;background:var(--gr);display:inline-block;animation:lp 2s infinite}
 @keyframes lp{0%{box-shadow:0 0 0 0 rgba(52,199,89,.5)}70%{box-shadow:0 0 0 8px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
 /* ── Animations ── */
-@keyframes fu{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fu{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
 @keyframes popIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-.fu{animation:fu .4s cubic-bezier(.34,1.4,.64,1) both}
-.fu1{animation:fu .4s .06s cubic-bezier(.34,1.4,.64,1) both}
-.fu2{animation:fu .4s .12s cubic-bezier(.34,1.4,.64,1) both}
-.fu3{animation:fu .4s .18s cubic-bezier(.34,1.4,.64,1) both}
-.fu4{animation:fu .4s .24s cubic-bezier(.34,1.4,.64,1) both}
-.fu5{animation:fu .4s .30s cubic-bezier(.34,1.4,.64,1) both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+/* SOC ring draw — starts from full offset (hidden), animates to computed inline value */
+@keyframes soc-draw{from{stroke-dashoffset:250}}
+/* Flow particle shimmer */
+@keyframes fl-pulse{0%,100%{opacity:.7}50%{opacity:1}}
+/* Login logo bounce */
+@keyframes logo-bounce{0%{opacity:0;transform:scale(.7) translateY(24px)}60%{transform:scale(1.07) translateY(-4px)}100%{opacity:1;transform:none}}
+/* Page slide-in */
+@keyframes page-in{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+.fu{animation:fu .44s cubic-bezier(.34,1.4,.64,1) both}
+.fu1{animation:fu .44s .07s cubic-bezier(.34,1.4,.64,1) both}
+.fu2{animation:fu .44s .13s cubic-bezier(.34,1.4,.64,1) both}
+.fu3{animation:fu .44s .19s cubic-bezier(.34,1.4,.64,1) both}
+.fu4{animation:fu .44s .25s cubic-bezier(.34,1.4,.64,1) both}
+.fu5{animation:fu .44s .31s cubic-bezier(.34,1.4,.64,1) both}
+.fu6{animation:fu .44s .37s cubic-bezier(.34,1.4,.64,1) both}
 .spin{display:inline-block;animation:spin 1s linear infinite}
+/* SOC ring: second circle inside SVG inside a ring wrapper */
+.soc-ring-el circle:nth-child(2){animation:soc-draw .9s .25s cubic-bezier(.34,1.2,.64,1) both}
+/* Tile press feedback */
+.tile{transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s,border-color .2s}
+.tile:active{transform:scale(.94);box-shadow:none}
+/* Card scale press */
+.hc{transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
+.hc:active{transform:scale(.985)}
 /* ── Login screen ── */
 .lw{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 28px;text-align:center;background:radial-gradient(ellipse at 50% 0%,rgba(245,166,35,.12) 0%,transparent 60%),var(--bg)}
 .ltabs{display:flex;background:var(--f2);border-radius:12px;padding:2px;margin-bottom:24px;width:100%;max-width:320px;border:1px solid var(--sep)}
@@ -334,14 +351,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   </div>
 
     <!-- Logo -->
-    <div style="margin-bottom:44px;text-align:center;animation:fu .5s cubic-bezier(.34,1.4,.64,1) both">
-      <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(145deg,#F5A623,#FF6B00);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 18px;box-shadow:0 8px 32px rgba(245,166,35,.35)">⚡</div>
-      <div style="font-size:34px;font-weight:800;letter-spacing:-1.5px;margin-bottom:5px;color:var(--t)">Voltli</div>
-      <div style="font-size:14px;color:var(--t3);letter-spacing:.2px">Deine Energie-Zentrale</div>
+    <div style="margin-bottom:44px;text-align:center">
+      <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(145deg,#F5A623,#FF6B00);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 18px;box-shadow:0 8px 32px rgba(245,166,35,.38);animation:logo-bounce .6s cubic-bezier(.34,1.56,.64,1) both">⚡</div>
+      <div style="font-size:34px;font-weight:800;letter-spacing:-1.5px;margin-bottom:5px;color:var(--t);animation:fu .5s .12s cubic-bezier(.34,1.4,.64,1) both">Voltli</div>
+      <div style="font-size:14px;color:var(--t3);letter-spacing:.2px;animation:fu .5s .2s cubic-bezier(.34,1.4,.64,1) both">Deine Energie-Zentrale</div>
     </div>
 
     <!-- Login -->
-    <div id="lp-a" style="width:100%;max-width:340px;animation:fu .5s .08s cubic-bezier(.34,1.4,.64,1) both">
+    <div id="lp-a" style="width:100%;max-width:340px;animation:fu .5s .28s cubic-bezier(.34,1.4,.64,1) both">
       <div id="fb-ok-bar" style="display:none" class="info info-gr">✅ Cloud-Sync verbunden</div>
       <div class="fg" style="margin-bottom:12px">
         <div class="fr"><label>E-Mail</label><input type="email" id="lg-m" placeholder="name@beispiel.de" autocomplete="email"/></div>
@@ -577,7 +594,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-12 15:27';
+var APP_VERSION='v1.0 - 2026-08-12 17:31';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -955,7 +972,9 @@ function showAppTour(){
 /* ── Tabs ── */
 function go(tab) {
   ['home','src','trnd','wthr','set'].forEach(function(t){
-    el('sc-'+t).style.display=t===tab?'block':'none';
+    var scr=el('sc-'+t);
+    scr.style.display=t===tab?'block':'none';
+    if(t===tab){scr.style.animation='none';scr.offsetHeight;scr.style.animation='page-in .38s cubic-bezier(.34,1.4,.64,1) both';}
     el('bt-'+t).classList.toggle('on',t===tab);
   });
   curTab=tab;
@@ -1344,6 +1363,7 @@ function patchHome(){
   // Jedes Akku-Gerät nur seine eigenen Messwerte — kein Fallback zwischen Geräten
   var lv_soc=_pfx?foxessLive.soc:(_mbl?_mbl.soc:(lv?lv.battery&&lv.battery.soc||0:0));
   var chargeW=combinedSolarW(); // Solar: FoxESS/Solakon (eine Anlage) + PowerRouter (zweite Anlage), addiert
+  var balkW2=(lv&&lv.balkon&&lv.balkon.solar>0)?lv.balkon.solar*1000:0;chargeW+=balkW2;
   var dischargeW=_pfx?foxessLive.batDischargeW:(_mbl?_mbl.discharge_w:(lv?lv.battery&&lv.battery.dischargeW||0:0)); // Akku: FoxESS oder Marstek (selber Akku)
   var bChWp=_pfx?foxessLive.batChargeW:(_mbl?_mbl.charge_w:0);    // Akku-Laden (AC): nur FoxESS kennt das
   var isSolar=chargeW>10;var isBatCharging=bChWp>10;
@@ -1355,8 +1375,11 @@ function patchHome(){
   hcard.style.background=grad;
   hcard.style.color='';
   hcard.style.boxShadow='0 0 0 1px var(--card-border),0 8px 32px '+accentGlow;
-  // Update hero label
-  var nsEl=hcard.querySelector('.hc-ns');if(nsEl)nsEl.textContent=isSolar?'☀️ Solar aktiv':isBatCharging?'⚡ Akku lädt':isDischarging?'🔋 Akku entlädt':'⏸ Akku inaktiv';
+  // Update hero label + kW color
+  var heroColP=isCharging?'var(--or)':isDischarging?'var(--bl)':'var(--t3)';
+  var heroGlowP=isCharging?'0 0 20px rgba(245,166,35,.4)':isDischarging?'0 0 20px rgba(100,140,255,.4)':'none';
+  var nsEl=hcard.querySelector('.hc-ns');if(nsEl){nsEl.textContent=isSolar?'☀️ Solar aktiv':isBatCharging?'⚡ Akku lädt':isDischarging?'🔋 Akku entlädt':'⏸ Akku inaktiv';nsEl.style.color=heroColP;}
+  var kwWrap=el('hero-kw-wrap');if(kwWrap){kwWrap.style.color=heroColP;kwWrap.style.textShadow=heroGlowP;}
   // Update watt value (animiert)
   var heroW=isSolar?chargeW:isBatCharging?bChWp:isDischarging?dischargeW:0;
   var wEl=el('hero-sol');
@@ -1778,7 +1801,7 @@ function socRing(soc,sz,white){
   var c=white?'#fff':socCol(soc),track=white?'rgba(255,255,255,.2)':'rgba(255,255,255,.08)';
   var ci=2*Math.PI*rad,fo=ci*(1-soc/100);
   var glowColor=white?'rgba(255,255,255,.4)':socCol(soc).replace(')',',0.35)').replace('rgb','rgba');
-  var d=div('','position:relative;width:'+sz+'px;height:'+sz+'px;flex-shrink:0');
+  var d=div('soc-ring-el','position:relative;width:'+sz+'px;height:'+sz+'px;flex-shrink:0');
   d.innerHTML='<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="transform:rotate(-90deg);filter:drop-shadow(0 0 6px '+glowColor+')">'
     +'<circle cx="'+sz/2+'" cy="'+sz/2+'" r="'+rad+'" fill="none" stroke="'+track+'" stroke-width="7"/>'
     +'<circle cx="'+sz/2+'" cy="'+sz/2+'" r="'+rad+'" fill="none" stroke="'+c+'" stroke-width="7" stroke-linecap="round"'
@@ -2195,6 +2218,7 @@ function rHome(){
   var _sk=S.solakonEnabled&&solakonLive&&!solakonIsStale();
   if(_fx||_sk||lv||!piBridgeIsStale('powerrouter')){
     var pvW2=combinedSolarW();
+    var balkW=(lv&&lv.balkon&&lv.balkon.solar>0)?lv.balkon.solar*1000:0;pvW2+=balkW;
     var dischargeW=_fx?foxessLive.batDischargeW:(lv?lv.battery&&lv.battery.dischargeW||0:0);
     var bChW2=_fx?foxessLive.batChargeW:0;
     if(_fx&&!lv_soc&&foxessLive.soc)lv_soc=foxessLive.soc;
@@ -2217,7 +2241,7 @@ function rHome(){
     var heroW=isSolar?pvW2:isBatCharging?bChW2:isDischarging?dischargeW:0;
     var heroCol=isCharging?'var(--or)':isDischarging?'var(--bl)':'var(--t3)';
     var heroGlow=isCharging?'0 0 20px rgba(245,166,35,.4)':isDischarging?'0 0 20px rgba(100,140,255,.4)':'none';
-    var nv=div('','font-size:60px;font-weight:800;letter-spacing:-2.5px;line-height:1;font-variant-numeric:tabular-nums;color:'+heroCol+';text-shadow:'+heroGlow);
+    var nv=div('','font-size:60px;font-weight:800;letter-spacing:-2.5px;line-height:1;font-variant-numeric:tabular-nums;color:'+heroCol+';text-shadow:'+heroGlow);nv.id='hero-kw-wrap';
     nv.innerHTML='<span id="hero-sol">'+(heroW/1000).toFixed(2)+'</span><span style="font-size:22px;font-weight:400;opacity:.6;margin-left:3px"> kW</span>';
     nw.appendChild(nv);
     var ns=div('hc-ns','font-size:14px;margin-top:8px;font-weight:600;color:'+heroCol+';opacity:.85');
