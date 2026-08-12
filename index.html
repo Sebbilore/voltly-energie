@@ -787,7 +787,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-12 21:18';
+var APP_VERSION='v1.0 - 2026-08-12 21:23';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1996,13 +1996,21 @@ function socRing(soc,sz,white){
   var ci=2*Math.PI*rad,fo=ci*(1-soc/100);
   var glowColor=white?'rgba(255,255,255,.4)':socCol(soc).replace(')',',0.35)').replace('rgb','rgba');
   var d=div('soc-ring-el','position:relative;width:'+sz+'px;height:'+sz+'px;flex-shrink:0');
-  d.innerHTML='<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="transform:rotate(-90deg);filter:drop-shadow(0 0 6px '+glowColor+')">'
-    +'<circle cx="'+sz/2+'" cy="'+sz/2+'" r="'+rad+'" fill="none" stroke="'+track+'" stroke-width="7"/>'
-    +'<circle cx="'+sz/2+'" cy="'+sz/2+'" r="'+rad+'" fill="none" stroke="'+c+'" stroke-width="7" stroke-linecap="round"'
+  var cy2=Math.round(sz/2);
+  d.innerHTML=
+    '<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="position:absolute;inset:0;transform:rotate(-90deg);filter:drop-shadow(0 0 6px '+glowColor+')">'
+    +'<circle cx="'+sz/2+'" cy="'+cy2+'" r="'+rad+'" fill="none" stroke="'+track+'" stroke-width="7"/>'
+    +'<circle cx="'+sz/2+'" cy="'+cy2+'" r="'+rad+'" fill="none" stroke="'+c+'" stroke-width="7" stroke-linecap="round"'
     +' stroke-dasharray="'+nf(ci)+'" stroke-dashoffset="'+nf(fo)+'"/>'
-    +'</svg><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">'
-    +'<span id="soc-pct" style="font-size:'+Math.round(sz*.2)+'px;font-weight:700;color:'+(white?'#fff':c)+';font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.5px">'+soc+'%</span>'
-    +'<span style="font-size:'+Math.round(sz*.12)+'px;color:'+(white?'rgba(255,255,255,.6)':'var(--t3)')+';line-height:1;letter-spacing:.5px;text-transform:uppercase">SOC</span></div>';
+    +'</svg>'
+    +'<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="position:absolute;inset:0">'
+    +'<text id="soc-pct" x="'+sz/2+'" y="'+Math.round(sz*.48)+'" text-anchor="middle" dominant-baseline="middle"'
+    +' font-size="'+Math.round(sz*.2)+'" font-weight="700" fill="currentColor" font-family="system-ui,-apple-system,sans-serif"'
+    +' style="color:'+(white?'#fff':c)+'">'+soc+'%</text>'
+    +'<text x="'+sz/2+'" y="'+Math.round(sz*.66)+'" text-anchor="middle" dominant-baseline="middle"'
+    +' font-size="'+Math.round(sz*.125)+'" fill="'+(white?'rgba(255,255,255,.6)':'rgba(142,142,154,1)')+'"'
+    +' font-family="system-ui,-apple-system,sans-serif" letter-spacing="1">SOC</text>'
+    +'</svg>';
   return d;
 }
 
