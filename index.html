@@ -789,7 +789,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-14 12:53';
+var APP_VERSION='v1.0 - 2026-08-14 13:05';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1021,7 +1021,7 @@ function doSignIn() {
     // Restore from Firestore in background after app started
     Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
       var cloudS=results[0], cloudAcc=results[1], rows=results[2];
-      if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyAllTheme(); schedFetch(); }
+      if(cloudS){ var _td=S._tourDone,_tok=S.marstekToken,_pins=S.sharePins; S=Object.assign({},DEF,cloudS); if(_td)S._tourDone=true; if(_tok&&!cloudS.marstekToken)S.marstekToken=_tok; if(_pins&&_pins.length&&!(cloudS.sharePins&&cloudS.sharePins.length))S.sharePins=_pins; localStorage.setItem(SK,JSON.stringify(S)); applyAllTheme(); schedFetch(); }
       else restoreSettingsSb(email,function(sbS){
         if(sbS){ S=Object.assign({},DEF,S,sbS); localStorage.setItem(SK,JSON.stringify(S)); applyAllTheme(); schedFetch();
           if(curTab==='home')rHome();if(curTab==='src')rSrc();if(curTab==='set')rSet(); }
@@ -1155,7 +1155,7 @@ function showAppTour(){
     steps.forEach(function(_,j){var d=document.createElement('div');d.style.cssText='width:'+(j===i?'18px':'6px')+';height:6px;border-radius:3px;background:'+(j===i?'var(--or)':'var(--sep2)')+';transition:all .25s';dots.appendChild(d);});
     btnNext.textContent=i===steps.length-1?'Los geht\'s!':'Weiter';
   }
-  function close(){S._tourDone=true;svS();if(ov.parentNode)ov.parentNode.removeChild(ov);}
+  function close(){S._tourDone=true;svS();localStorage.setItem('vt3_onb_done','1');if(ov.parentNode)ov.parentNode.removeChild(ov);}
   btnNext.onclick=function(){if(i<steps.length-1){i++;render();}else close();};
   btnSkip.onclick=close;
   btnRow.appendChild(btnSkip);btnRow.appendChild(btnNext);
@@ -1220,8 +1220,9 @@ function fetchMarstek(silent) {
       var allDev=ids.length?list.filter(function(x){return ids.indexOf(x.devid||x.mac||x.sn)>=0;}):list;
       var vDev=allDev.find(function(x){return x.type!=='HME-4';})||allDev[0]||list[0]||{};
       // CT002 (HME-4) — grid sensor, use when configured via S.ct002Id
-      var ctDev=list.find(function(x){return (x.devid||x.mac||x.sn)===S.ct002Id;})||
-                (S.ct002Id?{}:list.find(function(x){return x.type==='HME-4';})||{});
+      var ctDev=list.find(function(x){return (x.devid||x.mac||x.sn)===S.ct002Id;})
+                ||list.find(function(x){return x.type==='HME-4';})
+                ||{};
 
       window._lastDeviceList=list;
 
@@ -1809,7 +1810,8 @@ function loadDevices(token) {
       // API error (e.g. token expired) returns code 500 with empty data
       if(data.error||(data.code&&data.code!==1&&data.code!==0&&data.code!==200)){
         S.marstekToken='';svS();
-        body.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)"><div style="font-size:32px;margin-bottom:10px">⚠️</div><p style="margin-bottom:16px">'+(data.msg||data.error||'Sitzung abgelaufen')+'</p><button class="btn b-or" style="width:80%" onclick="hideOv(\'dv\');showOv(\'ml\')">Neu anmelden</button></div>';
+        var _errCode=data.code?'(Code '+data.code+')':'';
+        body.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)"><div style="font-size:32px;margin-bottom:10px">⚠️</div><p style="margin-bottom:16px">Sitzung abgelaufen '+_errCode+' — bitte neu anmelden</p><button class="btn b-or" style="width:80%" onclick="hideOv(\'dv\');showOv(\'ml\')">Neu anmelden</button></div>';
         showOv('dv');return;
       }
       if(!list.length){body.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)"><div style="font-size:40px;margin-bottom:10px">&#x1F4E1;</div><p>Keine Geräte gefunden</p></div>';showOv('dv');return;}
@@ -4008,7 +4010,7 @@ function renderWeather(cont,d){
         bootApp(false);
         Promise.all([CLOUD.loadSettings(), CLOUD.loadAcc(), CLOUD.loadEntries()]).then(function(results) {
           var cloudS=results[0], cloudAcc=results[1], rows=results[2];
-          if(cloudS){ S=Object.assign({},DEF,cloudS); localStorage.setItem(SK,JSON.stringify(S)); applyAllTheme(); schedFetch(); }
+          if(cloudS){ var _td2=S._tourDone,_tok2=S.marstekToken,_pins2=S.sharePins; S=Object.assign({},DEF,cloudS); if(_td2)S._tourDone=true; if(_tok2&&!cloudS.marstekToken)S.marstekToken=_tok2; if(_pins2&&_pins2.length&&!(cloudS.sharePins&&cloudS.sharePins.length))S.sharePins=_pins2; localStorage.setItem(SK,JSON.stringify(S)); applyAllTheme(); schedFetch(); }
           else restoreSettingsSb(user.email,function(sbS){
             if(sbS){ S=Object.assign({},DEF,S,sbS); localStorage.setItem(SK,JSON.stringify(S)); applyAllTheme(); schedFetch();
               if(curTab==='home')rHome();if(curTab==='src')rSrc();if(curTab==='set')rSet(); }
@@ -4288,6 +4290,7 @@ if('serviceWorker' in navigator){
 
   function finish(){
     S._tourDone=true;svS();
+    localStorage.setItem('vt3_onb_done','1');
     var onbEl=el('onb');
     onbEl.classList.add('onb-out');
     setTimeout(function(){
@@ -4307,10 +4310,11 @@ if('serviceWorker' in navigator){
     if(Math.abs(dx)>50&&Math.abs(dy)<60){if(dx<0&&_cur<_total-1)goTo(_cur+1);else if(dx>0&&_cur>0)goTo(_cur-1);}
   },{passive:true});
 
-  // Show onboarding if first launch — skip if user already has data (prevents overwriting cloud-synced settings)
+  // Show onboarding if first launch — use device-local flag so cloud restore can't re-trigger it
   var _hasData=S.marstekToken||(S.sharePins&&S.sharePins.length>0)||S.foxessApiKey||S.solakonRefreshToken;
-  if(!S._tourDone&&!demo&&!currentUser){
-    if(_hasData){S._tourDone=true;svS();}
+  var _devOnbDone=localStorage.getItem('vt3_onb_done');
+  if(!_devOnbDone&&!S._tourDone&&!demo&&!currentUser){
+    if(_hasData){S._tourDone=true;svS();localStorage.setItem('vt3_onb_done','1');}
     else{el('ls').style.display='none';el('onb').style.display='flex';updateDots();}
   }
 }());
