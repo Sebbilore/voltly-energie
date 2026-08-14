@@ -397,12 +397,15 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
 #lv-hcard{transition:box-shadow .7s ease,background .5s ease}
 
 /* ── Concept D — Mobile hero (max 767px) ── */
-@media(max-width:767px){
+@media(max-width:900px){
   #lv-hcard{
     background:#000!important;
     box-shadow:none!important;
     border-radius:22px!important;
     padding:0!important;
+    margin-left:-16px!important;
+    margin-right:-16px!important;
+    border-radius:0!important;
   }
 }
 
@@ -799,7 +802,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-14 15:04';
+var APP_VERSION='v1.0 - 2026-08-14 15:08';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
