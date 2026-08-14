@@ -789,7 +789,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-14 12:50';
+var APP_VERSION='v1.0 - 2026-08-14 12:53';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -2523,35 +2523,20 @@ function rHome(){
   var autarkieQ=acHaus>0?Math.min(100,Math.round(acEigen/acHaus*100)):0;
   var co2Heute=nf(acSol*(S.co2Faktor||350)/1000);
 
-  if(S.kompaktAnsicht){
-    // Kompakt: eine Zeile pro Wert, kein Grid, größere Zahlen
-    var kCard=div('card fu3','padding:0;overflow:hidden');
-    var kRows=[
-      {ic:'☀️',c:'var(--or)',v:acSol.toFixed(2),u:'kWh',l:'Solar'},
-      {ic:'🏠',c:'var(--pu)',v:acEigen.toFixed(2),u:'kWh',l:'Eigenverbrauch'},
-      {ic:'⚡',c:'var(--rd)',v:acGrd.toFixed(2),u:'kWh',l:'Netzbezug'},
-      {ic:'💶',c:'var(--gr)',v:acSav.toFixed(2),u:cur,l:'Ersparnis'},
-    ];
-    if(autarkieQ>0)kRows.push({ic:'🌿',c:'var(--gr)',v:autarkieQ,u:'%',l:'Autarkie'});
-    if(acHaus>0)kRows.push({ic:'🏡',c:'var(--bl)',v:acHaus.toFixed(2),u:'kWh',l:'Hauslast'});
-    kRows.forEach(function(r,i){
-      if(i>0){var s=document.createElement('div');s.style.cssText='height:.5px;background:var(--sep);margin:0 16px';kCard.appendChild(s);}
-      var row=div('','display:flex;align-items:center;padding:13px 18px;gap:14px');
-      row.innerHTML='<span style="font-size:20px">'+r.ic+'</span>'
-        +'<span style="flex:1;font-size:14px;color:var(--t2)">'+r.l+'</span>'
-        +'<span style="font-size:20px;font-weight:700;color:'+r.c+'">'+r.v+'<span style="font-size:12px;font-weight:400;color:var(--t3);margin-left:3px">'+r.u+'</span></span>';
-      kCard.appendChild(row);
-    });
-    f.appendChild(kCard);
-  } else {
-  var baseTiles=[
-    {ic:'☀️',bg:'var(--orb)',c:'var(--or)',v:acSol.toFixed(2),u:'kWh',l:'Solarertrag',tip:'Gesamte Solarproduktion seit Mitternacht.',tid:'solar'},
-    {ic:'⚡',bg:'var(--rdb)',c:'var(--rd)',v:acGrd.toFixed(2),u:'kWh',l:'Netzbezug',tip:'Aus dem Netz bezogene Energie heute.',tid:'grid'},
-    {ic:'💶',bg:'var(--grb)',c:'var(--gr)',v:acSav.toFixed(2),u:cur,l:'Ersparnis',tip:'(Solar+Akku) × '+S.strompreis+' '+cur+'/kWh',tid:'sav'}
-  ];
-  if(acHaus>0)baseTiles.push({ic:'🏡',bg:'var(--blb)',c:'var(--bl)',v:acHaus.toFixed(2),u:'kWh',l:'Hauslast',tip:'Gesamter Hausverbrauch heute.',tid:'haus'});
-  baseTiles.forEach(function(t){tg.appendChild(makeTile(t.ic,t.bg,t.v,t.u,t.c,t.l,t.tip,t.tid));});
-  } // end kompaktAnsicht else
+  // Variante A: 3-Zellen-Streifen
+  var strip3=div('fu3','display:flex;gap:1px;background:rgba(255,255,255,.07);border-radius:14px;overflow:hidden;margin-bottom:12px');
+  [{ic:'☀️',v:acSol.toFixed(2),u:'kWh',l:'Solarertrag',c:'var(--or)',tid:'solar'},
+   {ic:'⚡',v:acGrd.toFixed(2),u:'kWh',l:'Netzbezug',c:'var(--rd)',tid:'grid'},
+   {ic:'💶',v:acSav.toFixed(2),u:cur,l:'Ersparnis',c:'var(--gr)',tid:'sav'}
+  ].forEach(function(t){
+    var cell=div('','flex:1;background:var(--card);padding:13px 10px;text-align:center');
+    cell.innerHTML='<div style="font-size:18px">'+t.ic+'</div>'
+      +'<div class="t-v" id="tile-v-'+t.tid+'" style="font-size:18px;font-weight:700;color:'+t.c+';margin-top:4px" data-val="'+t.v+'">'+t.v+'<span class="t-u" style="font-size:10px;font-weight:400;color:var(--t3);margin-left:2px">'+t.u+'</span></div>'
+      +'<div style="font-size:10px;color:var(--t4);margin-top:2px">'+t.l+'</div>';
+    strip3.appendChild(cell);
+  });
+  f.appendChild(strip3);
+  if(acHaus>0)tg.appendChild(makeTile('🏡','var(--blb)',acHaus.toFixed(2),'kWh','var(--bl)','Hauslast','Gesamter Hausverbrauch heute.','haus'));
   // Sync-Timestamp + Sonnenauf/-untergang (immer anzeigen)
   var infoRow=div('','display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--t4);padding:4px 2px 0');
   var syncTxt=lastFetch?'↻ '+new Date(lastFetch).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'↻ —';
@@ -2562,17 +2547,14 @@ function rHome(){
   }
   infoRow.innerHTML='<span id="sync-ts">'+syncTxt+'</span><span>'+sunTxt+'</span>';
   f.appendChild(infoRow);
-  if(!S.kompaktAnsicht){
-    // Effizienz + Prognose nur im normalen Modus
-    if(acSol>0.01){var eff=effScore();tg.appendChild(makeTile('📊','var(--pub)',eff,'%','var(--pu)','Effizienz heute','Anteil Eigenenergie am Gesamtverbrauch.'));}
-    if(weatherCache&&weatherCache.daily&&weatherCache.daily.sunshine_duration&&entries.length>3){
-      var sunH2=Math.round(weatherCache.daily.sunshine_duration[0]/3600);
-      var avgS2=entries.reduce(function(s,e){return s+gv(e,'solar');},0)/entries.length;
-      var progV=nf(avgS2*Math.min(1.8,sunH2/5)).toFixed(1);
-      tg.appendChild(makeTile('🔮','var(--orb)',progV,'kWh','var(--or)','Prognose heute','Basierend auf '+sunH2+'h Sonnenstunden.'));
-    }
-    f.appendChild(tg);
+  if(acSol>0.01){var eff=effScore();tg.appendChild(makeTile('📊','var(--pub)',eff,'%','var(--pu)','Effizienz heute','Anteil Eigenenergie am Gesamtverbrauch.'));}
+  if(weatherCache&&weatherCache.daily&&weatherCache.daily.sunshine_duration&&entries.length>3){
+    var sunH2=Math.round(weatherCache.daily.sunshine_duration[0]/3600);
+    var avgS2=entries.reduce(function(s,e){return s+gv(e,'solar');},0)/entries.length;
+    var progV=nf(avgS2*Math.min(1.8,sunH2/5)).toFixed(1);
+    tg.appendChild(makeTile('🔮','var(--orb)',progV,'kWh','var(--or)','Prognose heute','Basierend auf '+sunH2+'h Sonnenstunden.'));
   }
+  if(tg.children.length>0)f.appendChild(tg);
   // Ziel-Tracker
   if(S.monatsZiel>0){
     var mKey=today().slice(0,7);
@@ -2607,11 +2589,20 @@ function rHome(){
     f.appendChild(aCard);
   }
 
-  f.appendChild(makeCard2([
-    makeRow('☀️','var(--orb)','Solar gesamt',null,tS.toFixed(1)+' kWh','var(--or)',false,function(){showTip('Jahresprognose: '+(entries.length?(tSv/entries.length*365).toFixed(0):0)+' '+cur+'/Jahr');}),
-    makeRow('💶','var(--grb)','Gesamt gespart',null,tSv.toFixed(2)+' '+cur,'var(--gr)',false,null),
-    makeRow('🌿','var(--tlb)','CO₂ gespart',null,(tS*0.401).toFixed(1)+' kg','var(--tl)',false,function(){showTip('0.401 kg CO₂ pro kWh (Bundesmix 2024)');})
-  ]));
+  var sumCard=div('card fu3','padding:0;overflow:hidden');
+  [{ic:'☀️',icBg:'rgba(255,149,0,.15)',l:'Solar gesamt',v:tS.toFixed(1)+' kWh',c:'var(--or)',tip:'Jahresprognose: '+(entries.length?(tSv/entries.length*365).toFixed(0):0)+' '+cur+'/Jahr'},
+   {ic:'💶',icBg:'rgba(48,209,88,.15)',l:'Gesamt gespart',v:tSv.toFixed(2)+' '+cur,c:'var(--gr)',tip:null},
+   {ic:'🌿',icBg:'rgba(90,200,250,.15)',l:'CO₂ gespart',v:(tS*0.401).toFixed(1)+' kg',c:'var(--tl)',tip:'0.401 kg CO₂ pro kWh (Bundesmix 2024)'}
+  ].forEach(function(r,i){
+    if(i>0){var sp=document.createElement('div');sp.style.cssText='height:.5px;background:var(--sep);margin:0 16px';sumCard.appendChild(sp);}
+    var row=div('','display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:'+(r.tip?'pointer':'default'));
+    if(r.tip)row.onclick=function(){showTip(r.tip);};
+    row.innerHTML='<div style="width:32px;height:32px;border-radius:8px;background:'+r.icBg+';display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+r.ic+'</div>'
+      +'<div style="flex:1;font-size:13px;color:var(--t2)">'+r.l+'</div>'
+      +'<div style="font-size:15px;font-weight:700;color:'+r.c+'">'+r.v+'</div>';
+    sumCard.appendChild(row);
+  });
+  f.appendChild(sumCard);
 
   var cc=div('cc fu4');var cht=div('','font-size:16px;font-weight:600;margin-bottom:10px');cht.textContent='Verlauf';cc.appendChild(cht);
   cc.appendChild(makeSeg([['day','Tage'],['week','Wochen'],['month','Monate'],['year','Jahre']],period,function(p){S.chartPeriod=p;svS();rHome();}));
