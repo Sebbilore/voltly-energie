@@ -396,6 +396,28 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
 /* ── Hero card — smooth transitions only ── */
 #lv-hcard{transition:box-shadow .7s ease,background .5s ease}
 
+/* ── Concept D — Mobile hero (max 767px) ── */
+@media(max-width:767px){
+  #lv-hcard{
+    background:#000!important;
+    box-shadow:none!important;
+    border-radius:22px!important;
+  }
+  /* Ring: größer skalieren via viewBox-aware CSS */
+  .hcd-ring-outer{width:180px!important;height:180px!important;margin:12px auto!important}
+  .hcd-ring-outer svg{width:180px!important;height:180px!important}
+  /* Texte im Ring */
+  .hcd-soc-pct{font-size:40px!important}
+  .hcd-soc-lbl{font-size:10px!important}
+  .hcd-kw{font-size:16px!important;margin-top:7px!important}
+  /* Status-Label */
+  .hcd-label{font-size:14px!important;margin-bottom:16px!important}
+  /* Grid-Zellen: OLED-schwarz statt grau */
+  .hcd-cell{background:#000!important;padding:16px 12px!important}
+  .hcd-cell-val{font-size:15px!important}
+  .hcd-cell-lbl{font-size:10px!important}
+}
+
 /* ── PLAYFUL: Live dot stronger pulse ── */
 @keyframes lp{0%{box-shadow:0 0 0 0 rgba(52,199,89,.7)}55%{box-shadow:0 0 0 7px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
 .ldot{animation:lp 1.6s ease-in-out infinite}
@@ -789,7 +811,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-14 13:26';
+var APP_VERSION='v1.0 - 2026-08-14 13:42';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -2407,27 +2429,27 @@ function _buildHeroC(lv_soc,heroW,isSolar,isBatCharging,isDischarging,fw,dw,bChW
   var netW=Math.abs(lw),netLabel=netExport?'Einspeis.':'Bezug';
   var h='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'+eyeHtml+'</div>';
   h+='<div style="display:flex;justify-content:center;margin:8px 0 4px">';
-  h+='<div style="position:relative;width:'+sz+'px;height:'+sz+'px">';
+  h+='<div class="hcd-ring-outer" style="position:relative;width:'+sz+'px;height:'+sz+'px">';
   h+='<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="transform:rotate(-90deg);display:block">';
   h+='<circle cx="'+cx+'" cy="'+cy+'" r="'+rad+'" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="9"/>';
   h+='<circle cx="'+cx+'" cy="'+cy+'" r="'+rad+'" fill="none" stroke="'+cBat+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+fo+'"/>';
   h+='</svg>';
   h+='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0">';
-  h+='<span style="font-size:26px;font-weight:800;letter-spacing:-1px;color:#fff">'+lv_soc+'%</span>';
-  h+='<span style="font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.12em">SOC</span>';
-  h+='<span id="hero-sol" style="font-size:14px;font-weight:700;margin-top:5px;color:'+heroCol+'">'+mainKwStr+'</span>';
+  h+='<span class="hcd-soc-pct" style="font-size:26px;font-weight:800;letter-spacing:-1px;color:#fff">'+lv_soc+'%</span>';
+  h+='<span class="hcd-soc-lbl" style="font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.12em">SOC</span>';
+  h+='<span id="hero-sol" class="hcd-kw" style="font-size:14px;font-weight:700;margin-top:5px;color:'+heroCol+'">'+mainKwStr+'</span>';
   h+='</div></div></div>';
-  h+='<div class="hc-ns" style="text-align:center;font-size:13px;font-weight:600;color:'+heroCol+';opacity:.85;margin-bottom:14px">'+mainLabel+'</div>';
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,.07);border-radius:14px;overflow:hidden">';
+  h+='<div class="hc-ns hcd-label" style="text-align:center;font-size:13px;font-weight:600;color:'+heroCol+';opacity:.85;margin-bottom:14px">'+mainLabel+'</div>';
+  h+='<div class="hcd-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,.07);border-radius:14px;overflow:hidden">';
   [{ic:'☀️',v:(fw/1000).toFixed(2)+' kW',l:'Solar',c:cSol},
    {ic:'🏠',v:hausW>0?(hausW/1000).toFixed(2)+' kW':'0 kW',l:'Haus',c:cHaus},
    {ic:'🔋',v:lv_soc+'%'+(bChW>10?' ↑':dw>10?' ↓':''),l:'Akku',c:cBat},
    {ic:'⚡',v:(netW/1000).toFixed(2)+' kW',l:netLabel,c:cNet}
   ].forEach(function(c){
-    h+='<div style="background:rgba(28,28,30,1);padding:12px 10px;text-align:center">';
+    h+='<div class="hcd-cell" style="background:rgba(28,28,30,1);padding:12px 10px;text-align:center">';
     h+='<div style="font-size:17px">'+c.ic+'</div>';
-    h+='<div style="font-size:14px;font-weight:700;color:'+c.c+';margin-top:3px">'+c.v+'</div>';
-    h+='<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:2px">'+c.l+'</div>';
+    h+='<div class="hcd-cell-val" style="font-size:14px;font-weight:700;color:'+c.c+';margin-top:3px">'+c.v+'</div>';
+    h+='<div class="hcd-cell-lbl" style="font-size:10px;color:rgba(255,255,255,.35);margin-top:2px">'+c.l+'</div>';
     h+='</div>';
   });
   h+='</div>';
