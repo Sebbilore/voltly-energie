@@ -799,7 +799,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-14 14:57';
+var APP_VERSION='v1.0 - 2026-08-14 15:04';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1597,14 +1597,13 @@ function patchHome(){
   var ageSec2=lastFetch?Math.round((Date.now()-lastFetch)/1000):null;
   var ageStr2=ageSec2===null?'':(ageSec2<5?'gerade ✓':'vor '+(ageSec2<60?ageSec2+'s':Math.round(ageSec2/60)+'min'));
   var eyeHtml2='<span class="hc-ey" style="color:var(--t3)"><span class="ldot"></span> '+(lv.source==='demo'?'Demo':'Live')+(ageStr2?' &nbsp;&middot;&nbsp; <span style="opacity:.8">'+ageStr2+'</span>':'')+'</span>';
-  var isMobP=window.innerWidth<=767;
+  var isMobP=window.matchMedia('(max-width:900px)').matches;
   if(isMobP){
-    hcard.style.background='#000';
-    hcard.style.boxShadow='none';
+    hcard.style.cssText='background:#000;border-radius:22px;overflow:hidden';
+    hcard.className='fu2';
     hcard.innerHTML=_buildHeroD(lv_soc,heroWp,isSolar,isBatCharging,isDischarging,fw,dw,bChW,lw,hausW,netExport,autarkiePH,cSol,cBat,cHaus,cNet,heroColP,eyeHtml2);
   } else {
-    hcard.style.background=grad;
-    hcard.style.boxShadow='0 0 0 1px var(--card-border),0 8px 32px '+accentGlow;
+    hcard.style.cssText='background:'+grad+';box-shadow:0 0 0 1px var(--card-border),0 8px 32px '+accentGlow+';overflow:hidden';
     hcard.innerHTML=_buildHeroC(lv_soc,heroWp,isSolar,isBatCharging,isDischarging,fw,dw,bChW,lw,hausW,netExport,autarkiePH,cSol,cBat,cHaus,cNet,heroColP,eyeHtml2);
   }
   // Sync-Timestamp aktualisieren
@@ -2577,13 +2576,13 @@ function rHome(){
     var ageSec=lastFetch?Math.round((Date.now()-lastFetch)/1000):null;
     var ageStr=ageSec===null?'':(ageSec<5?'gerade ✓':'vor '+(ageSec<60?ageSec+'s':Math.round(ageSec/60)+'min'));
     var eyeHtml='<span class="hc-ey" style="color:var(--t3)"><span class="ldot"></span> '+(lv.source==='demo'?'Demo':'Live')+(ageStr?' &nbsp;&middot;&nbsp; <span style="opacity:.8">'+ageStr+'</span>':'')+'</span>';
-    var isMob=window.innerWidth<=767;
-    var hcard=div('hc fu2');hcard.id='lv-hcard';
+    var isMob=window.matchMedia('(max-width:900px)').matches;
+    var hcard=div(isMob?'fu2':'hc fu2');hcard.id='lv-hcard';
     if(isMob){
-      hcard.style.cssText+='background:#000;box-shadow:none;overflow:hidden;padding-bottom:0';
+      hcard.style.cssText='background:#000;border-radius:22px;overflow:hidden';
       hcard.innerHTML=_buildHeroD(lv_soc,heroW,isSolar,isBatCharging,isDischarging,fw,dw,bChWr,lw,hausW,netExport,autarkie,cSol,cBat,cHaus,cNet,heroCol,eyeHtml);
     } else {
-      hcard.style.cssText+='background:'+grad+';box-shadow:0 0 0 1px var(--card-border),0 8px 32px '+accentGlow+';overflow:hidden';
+      hcard.style.cssText='background:'+grad+';box-shadow:0 0 0 1px var(--card-border),0 8px 32px '+accentGlow+';overflow:hidden';
       hcard.innerHTML=_buildHeroC(lv_soc,heroW,isSolar,isBatCharging,isDischarging,fw,dw,bChWr,lw,hausW,netExport,autarkie,cSol,cBat,cHaus,cNet,heroCol,eyeHtml);
     }
     f.appendChild(hcard);
