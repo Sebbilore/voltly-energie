@@ -789,7 +789,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-12 21:35';
+var APP_VERSION='v1.0 - 2026-08-14 12:50';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1552,8 +1552,8 @@ function openSolakonSettings(){
 
 function patchHome(){
   var lv=al();
-  var hcard=el('lv-hcard');var flowEl=el('lv-flow');
-  if(!hcard||!flowEl){rHome();return;}
+  var hcard=el('lv-hcard');
+  if(!hcard){rHome();return;}
   var _pfx=S.foxessEnabled&&!foxessIsStale();
   var _mbl=marstekBatteryLocal(); // Marstek-Akku lokal über Pi — verlässlicher als Cloud
   // Jedes Akku-Gerät nur seine eigenen Messwerte — kein Fallback zwischen Geräten
@@ -1567,57 +1567,23 @@ function patchHome(){
   var onGrad=isCharging||isDischarging;
   var grad=isCharging?'linear-gradient(145deg,#1A1400 0%,#1A1A1E 100%)':isDischarging?'linear-gradient(145deg,#001430 0%,#1A1A1E 100%)':'linear-gradient(145deg,#141420 0%,#1A1A1E 100%)';
   var accentGlow=isCharging?'rgba(245,166,35,.18)':isDischarging?'rgba(100,140,255,.18)':'transparent';
-  // Update hero card style
-  hcard.style.background=grad;
-  hcard.style.color='';
-  hcard.style.boxShadow='0 0 0 1px var(--card-border),0 8px 32px '+accentGlow;
-  // Update hero label + kW color
+  // Update hero card — Variant C
   var heroColP=isCharging?'var(--or)':isDischarging?'var(--bl)':'var(--t3)';
-  var heroGlowP=isCharging?'0 0 20px rgba(245,166,35,.4)':isDischarging?'0 0 20px rgba(100,140,255,.4)':'none';
-  var nsEl=hcard.querySelector('.hc-ns');if(nsEl){nsEl.textContent=isSolar?'☀️ Solar aktiv':isBatCharging?'⚡ Akku lädt':isDischarging?'🔋 Akku entlädt':'⏸ Akku inaktiv';nsEl.style.color=heroColP;}
-  var kwWrap=el('hero-kw-wrap');if(kwWrap){kwWrap.style.color=heroColP;kwWrap.style.textShadow=heroGlowP;}
-  // Update watt value (animiert)
-  var heroW=isSolar?chargeW:isBatCharging?bChWp:isDischarging?dischargeW:0;
-  var wEl=el('hero-sol');
-  if(wEl){
-    var fromV=parseFloat(wEl.getAttribute('data-val')||'0');
-    var toV=heroW/1000;
-    wEl.setAttribute('data-val',toV);
-    if(Math.abs(toV-fromV)>0.001){
-      var st2=null;
-      (function animate(ts){if(!st2)st2=ts;var p=Math.min((ts-st2)/400,1);wEl.textContent=(fromV+(toV-fromV)*p).toFixed(2);if(p<1)requestAnimationFrame(animate);})();
-    } else {wEl.textContent=toV.toFixed(2);}
-  }
-  // Update SOC ring
-  var socRingEl=hcard.querySelector('svg');
-  if(socRingEl){var tmp=div('');tmp.innerHTML=socRing(lv_soc,96,onGrad).outerHTML||'';var newSvg=socRing(lv_soc,96,onGrad);var oldSvg=hcard.querySelector('svg');if(oldSvg)oldSvg.parentNode.replaceChild(newSvg.querySelector?newSvg:newSvg,oldSvg);}
-  // Update flow SVG — Solar: FoxESS/Solakon + PowerRouter addiert; Netzbezug: CT002 bevorzugt
-  var fw=combinedSolarW();
-  var dw=_pfx?foxessLive.batDischargeW:(_mbl?_mbl.discharge_w:(lv&&lv.battery&&lv.battery.dischargeW||0));
-  var bChW=_pfx?foxessLive.batChargeW:(_mbl?_mbl.charge_w:(lv&&lv.venus&&lv.venus.charge||0));
+  hcard.style.background=grad;
+  hcard.style.boxShadow='0 0 0 1px var(--card-border),0 8px 32px '+accentGlow;
+  var heroWp=isSolar?chargeW:isBatCharging?bChWp:isDischarging?dischargeW:0;
+  var fw=chargeW,dw=dischargeW,bChW=bChWp;
   var _cg=ctGridW();
   var lw=_cg!=null?_cg:(_pfx?(foxessLive.gridW-foxessLive.feedinW):(lv&&lv.venus&&lv.venus.load||0));
   var hasRealGrid=_cg!=null||_pfx||!!lv;
   var hausW=houseBalanceW(fw,dw,bChW,lw,hasRealGrid);
   var netExport=lw<0;
-  var W=320,H=185,R=22;
-  var nSol={x:160,y:48},nNet={x:40,y:130},nAku={x:280,y:130},nHaus={x:160,y:130};
   var cSol='#FF9500',cBat=socCol(lv_soc),cHaus='#AF52DE',cNet=netExport?'#34C759':'#FF3B30';
-  function fl(x1,y1,x2,y2,col,anim,watts){var on=!!anim;var dur=on?(watts>1200?'0.45s':watts>600?'0.62s':'0.85s'):'';var glow=on?'<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col+'" stroke-width="9" stroke-linecap="round" opacity=".09"/>':'';return glow+'<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round" opacity="'+(on?'.9':'.09')+'"'+(on?' stroke-dasharray="6 4" class="fl-line '+anim+'" style="animation-duration:'+dur+'"':'')+'/>'; }
-  function fn(cx,cy,ic,val,lbl,col,above){var vY=above?(cy-R-12):(cy+R+14);var lY=above?(cy-R-2):(cy+R+25);return '<g><circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+col+'" opacity=".2"/><text x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle" font-size="18">'+ic+'</text><text x="'+cx+'" y="'+vY+'" text-anchor="middle" font-size="11" font-weight="700" fill="'+col+'">'+val+'</text><text x="'+cx+'" y="'+lY+'" text-anchor="middle" font-size="9.5" fill="#8E8E93">'+lbl+'</text></g>';}
-  function mb(x1,y1,x2,y2,txt,col){var mx=(x1+x2)/2,my=(y1+y2)/2-10;var tw=txt.length*6+10;return '<rect x="'+(mx-tw/2)+'" y="'+(my-9)+'" width="'+tw+'" height="17" rx="8" fill="'+col+'" opacity=".15"/><text x="'+mx+'" y="'+(my+4)+'" text-anchor="middle" font-size="10" font-weight="700" fill="'+col+'">'+txt+'</text>';}
-  var newSvg='<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
-    +fl(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'rgba(255,255,255,.1)',fw>10?'active-d':'',fw)
-    +fl(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'rgba(255,255,255,.1)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'',Math.abs(lw))
-    +fl(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10||dw>10)?cBat:'rgba(255,255,255,.1)',(bChW>10)?'active-r':(dw>10?'active-l':''),bChW>10?bChW:dw)
-    +(Math.abs(lw)>10?mb(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(Math.round(lw))+'W',cNet):'')
-    +((bChW>10||dw>10)?mb(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10?bChW:dw)+'W',cBat):'')
-    +fn(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true)
-    +fn(nNet.x,nNet.y,'⚡',Math.abs(lw)>10?Math.abs(Math.round(lw))+'W':'—',netExport?'Einspeisung':'Netz','#8E8E93')
-    +fn(nHaus.x,nHaus.y,'🏠',hausW!=null?hausW+'W':'—','Haus',cHaus)
-    +fn(nAku.x,nAku.y,'🔋',lv_soc+'%',bChW>10?'lädt':dw>10?'entlädt':'Akku',cBat)
-    +'</svg>';
-  flowEl.innerHTML=newSvg;
+  var autarkiePH=hausW>0?Math.min(100,Math.round((hausW-Math.max(0,lw))/hausW*100)):0;
+  var ageSec2=lastFetch?Math.round((Date.now()-lastFetch)/1000):null;
+  var ageStr2=ageSec2===null?'':(ageSec2<5?'gerade ✓':'vor '+(ageSec2<60?ageSec2+'s':Math.round(ageSec2/60)+'min'));
+  var eyeHtml2='<span class="hc-ey" style="color:var(--t3)"><span class="ldot"></span> '+(lv.source==='demo'?'Demo':'Live')+(ageStr2?' &nbsp;&middot;&nbsp; <span style="opacity:.8">'+ageStr2+'</span>':'')+'</span>';
+  hcard.innerHTML=_buildHeroC(lv_soc,heroWp,isSolar,isBatCharging,isDischarging,fw,dw,bChW,lw,hausW,netExport,autarkiePH,cSol,cBat,cHaus,cNet,heroColP,eyeHtml2);
   // Sync-Timestamp aktualisieren
   var sts=el('sync-ts');
   if(sts&&lastFetch)sts.textContent='↻ '+new Date(lastFetch).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -2390,6 +2356,88 @@ function renderAwattar(cont,d){
   cont.appendChild(card);
 }
 
+/* ══════ FLOW CARD — VARIANT E ══════ */
+function _buildFlowE(fw,dw,bChW,lw,hausW,netExport,autarkie,progStr,lv_soc,cSol,cBat,cNet,cHaus){
+  var mainKw,mainLabel,mainCol,mainIc;
+  if(fw>10){mainKw=(fw/1000).toFixed(2);mainLabel='Solar · erzeugt';mainCol=cSol;mainIc='☀️';}
+  else if(dw>10){mainKw=(dw/1000).toFixed(2);mainLabel='Akku · entlädt';mainCol=cBat;mainIc='🔋';}
+  else if(bChW>10){mainKw=(bChW/1000).toFixed(2);mainLabel='Akku · lädt';mainCol=cBat;mainIc='🔋';}
+  else if(Math.abs(lw)>10){mainKw=(Math.abs(lw)/1000).toFixed(2);mainLabel=netExport?'Einspeisung':'Netz · Bezug';mainCol=cNet;mainIc='⚡';}
+  else{mainKw='—';mainLabel='Kein Energiefluss';mainCol='var(--t4)';mainIc='🌙';}
+  var akkuSt=bChW>10?'lädt':dw>10?'entlädt':'Akku';
+  var netzLbl=netExport?'Einspeis.':'Netz';
+  var h='<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0 16px">'
+    +'<div><div style="font-size:11px;color:var(--t4);margin-bottom:3px;font-weight:500">'+mainLabel+'</div>'
+    +'<div style="font-size:40px;font-weight:700;color:'+mainCol+';font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1">'
+    +mainKw+(mainKw!=='—'?'<span style="font-size:16px;font-weight:400;color:var(--t3);margin-left:3px">kW</span>':'')+'</div></div>'
+    +'<span style="font-size:54px;line-height:1;opacity:.12">'+mainIc+'</span></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'
+    +'<div style="background:var(--f);border-radius:10px;padding:11px 6px 10px;text-align:center">'
+    +'<span style="font-size:20px;line-height:1">🔋</span>'
+    +'<div style="font-size:15px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;color:'+cBat+'">'+lv_soc+'%</div>'
+    +'<div style="font-size:10px;color:var(--t4);margin-top:2px">'+akkuSt+'</div></div>'
+    +'<div style="background:var(--f);border-radius:10px;padding:11px 6px 10px;text-align:center">'
+    +'<span style="font-size:20px;line-height:1">🏠</span>'
+    +'<div style="font-size:15px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;color:'+cHaus+'">'+(hausW!=null?hausW+'W':'—')+'</div>'
+    +'<div style="font-size:10px;color:var(--t4);margin-top:2px">Verbrauch</div></div>'
+    +'<div style="background:var(--f);border-radius:10px;padding:11px 6px 10px;text-align:center">'
+    +'<span style="font-size:20px;line-height:1">⚡</span>'
+    +'<div style="font-size:15px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;color:'+cNet+'">'+Math.abs(Math.round(lw))+'W</div>'
+    +'<div style="font-size:10px;color:var(--t4);margin-top:2px">'+netzLbl+'</div></div></div>';
+  if(autarkie>0)h+='<div style="margin-top:12px;padding-top:10px;border-top:.5px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px">'
+    +'<span style="font-size:11px;color:var(--t4);font-weight:500;white-space:nowrap">Autarkie</span>'
+    +'<div style="flex:1;height:4px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden">'
+    +'<div style="height:4px;width:'+autarkie+'%;background:linear-gradient(90deg,#34C759,#30D158);border-radius:4px"></div></div>'
+    +'<span style="font-size:13px;font-weight:700;color:#30D158;letter-spacing:-.3px">'+autarkie+'%</span></div>';
+  if(progStr)h+='<div style="margin-top:6px;font-size:12px;color:var(--bl);font-weight:500">'+progStr+'</div>';
+  return h;
+}
+
+function _buildHeroC(lv_soc,heroW,isSolar,isBatCharging,isDischarging,fw,dw,bChW,lw,hausW,netExport,autarkie,cSol,cBat,cHaus,cNet,heroCol,eyeHtml){
+  var rad=52,sz=126,cx=63,cy=63;
+  var circ=+(2*Math.PI*rad).toFixed(1);
+  var fo=+(circ*(1-Math.min(lv_soc,100)/100)).toFixed(1);
+  var mainKwStr=heroW>0?(heroW/1000).toFixed(2)+' kW':'—';
+  var mainLabel=isSolar?'☀️ Solar · erzeugt':isBatCharging?'⚡ Akku · lädt':isDischarging?'🔋 Akku · entlädt':'⏸ Bereit';
+  var netW=Math.abs(lw),netLabel=netExport?'Einspeis.':'Bezug';
+  var h='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'+eyeHtml+'</div>';
+  h+='<div style="display:flex;justify-content:center;margin:8px 0 4px">';
+  h+='<div style="position:relative;width:'+sz+'px;height:'+sz+'px">';
+  h+='<svg width="'+sz+'" height="'+sz+'" viewBox="0 0 '+sz+' '+sz+'" style="transform:rotate(-90deg);display:block">';
+  h+='<circle cx="'+cx+'" cy="'+cy+'" r="'+rad+'" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="9"/>';
+  h+='<circle cx="'+cx+'" cy="'+cy+'" r="'+rad+'" fill="none" stroke="'+cBat+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+circ+'" stroke-dashoffset="'+fo+'"/>';
+  h+='</svg>';
+  h+='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0">';
+  h+='<span style="font-size:26px;font-weight:800;letter-spacing:-1px;color:#fff">'+lv_soc+'%</span>';
+  h+='<span style="font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.12em">SOC</span>';
+  h+='<span id="hero-sol" style="font-size:14px;font-weight:700;margin-top:5px;color:'+heroCol+'">'+mainKwStr+'</span>';
+  h+='</div></div></div>';
+  h+='<div class="hc-ns" style="text-align:center;font-size:13px;font-weight:600;color:'+heroCol+';opacity:.85;margin-bottom:14px">'+mainLabel+'</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,.07);border-radius:14px;overflow:hidden">';
+  [{ic:'☀️',v:(fw/1000).toFixed(2)+' kW',l:'Solar',c:cSol},
+   {ic:'🏠',v:hausW>0?(hausW/1000).toFixed(2)+' kW':'0 kW',l:'Haus',c:cHaus},
+   {ic:'🔋',v:lv_soc+'%'+(bChW>10?' ↑':dw>10?' ↓':''),l:'Akku',c:cBat},
+   {ic:'⚡',v:(netW/1000).toFixed(2)+' kW',l:netLabel,c:cNet}
+  ].forEach(function(c){
+    h+='<div style="background:rgba(28,28,30,1);padding:12px 10px;text-align:center">';
+    h+='<div style="font-size:17px">'+c.ic+'</div>';
+    h+='<div style="font-size:14px;font-weight:700;color:'+c.c+';margin-top:3px">'+c.v+'</div>';
+    h+='<div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:2px">'+c.l+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  if(autarkie>0||hausW>0){
+    h+='<div style="margin-top:12px">';
+    h+='<div style="background:rgba(255,255,255,.1);border-radius:99px;height:5px;overflow:hidden">';
+    h+='<div style="height:100%;border-radius:99px;background:#30D158;width:'+autarkie+'%"></div></div>';
+    h+='<div style="display:flex;justify-content:space-between;margin-top:5px">';
+    h+='<span style="font-size:10px;color:rgba(255,255,255,.35)">Autarkie</span>';
+    h+='<span style="font-size:10px;font-weight:700;color:#30D158">'+autarkie+'%</span>';
+    h+='</div></div>';
+  }
+  return h;
+}
+
 /* ══════ RENDER HOME ══════ */
 function rHome(){
   resetTileIdx();
@@ -2432,40 +2480,25 @@ function rHome(){
     var isSolar=pvW2>10;
     var isBatCharging=bChW2>10;
     var isCharging=isSolar||isBatCharging;var isDischarging=dischargeW>10;
-    var onGrad=isCharging||isDischarging;
     var grad=isCharging?'linear-gradient(145deg,#1A1400 0%,#1A1A1E 100%)':isDischarging?'linear-gradient(145deg,#001430 0%,#1A1A1E 100%)':'linear-gradient(145deg,#141420 0%,#1A1A1E 100%)';
     var accentGlow=isCharging?'rgba(245,166,35,.18)':isDischarging?'rgba(100,140,255,.18)':'transparent';
-    var hcard=div('hc fu2');hcard.id='lv-hcard';
-    hcard.style.cssText+='background:'+grad+';box-shadow:0 0 0 1px var(--card-border),0 8px 32px '+accentGlow+';overflow:hidden';
-    var ageSec=lastFetch?Math.round((Date.now()-lastFetch)/1000):null;
-    var ageStr=ageSec===null?'':(ageSec<5?'gerade ✓':'vor '+(ageSec<60?ageSec+'s':Math.round(ageSec/60)+'min'));
-    var fetchTsStr=lastFetch?new Date(lastFetch).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
-    var ey=div('hc-ey','color:var(--t3)');
-    ey.innerHTML='<span class="ldot"></span> '+(lv.source==='demo'?'Demo':'Live')+(ageStr?' &nbsp;&middot;&nbsp; <span style="opacity:.8">'+ageStr+'</span>':'')+(fetchTsStr?' &nbsp;&middot;&nbsp; <span style="opacity:.6;font-size:11px">🕐 '+fetchTsStr+'</span>':'');
-    hcard.appendChild(ey);
-    var top=div('','display:flex;align-items:flex-start;justify-content:space-between;gap:12px');
-    var nw=div('','flex:1');
     var heroW=isSolar?pvW2:isBatCharging?bChW2:isDischarging?dischargeW:0;
     var heroCol=isCharging?'var(--or)':isDischarging?'var(--bl)':'var(--t3)';
-    var heroGlow=isCharging?'0 0 20px rgba(245,166,35,.4)':isDischarging?'0 0 20px rgba(100,140,255,.4)':'none';
-    var nv=div('','font-size:60px;font-weight:800;letter-spacing:-2.5px;line-height:1;font-variant-numeric:tabular-nums;color:'+heroCol+';text-shadow:'+heroGlow);nv.id='hero-kw-wrap';
-    nv.innerHTML='<span id="hero-sol">'+(heroW/1000).toFixed(2)+'</span><span style="font-size:22px;font-weight:400;opacity:.6;margin-left:3px"> kW</span>';
-    nw.appendChild(nv);
-    var ns=div('hc-ns','font-size:14px;margin-top:8px;font-weight:600;color:'+heroCol+';opacity:.85');
-    ns.textContent=isSolar?'☀️ Solar aktiv':isBatCharging?'⚡ Akku lädt':isDischarging?'🔋 Akku entlädt':'⏸ Akku inaktiv';
-    nw.appendChild(ns);
-    top.appendChild(nw);top.appendChild(socRing(lv_soc,100,false));hcard.appendChild(top);
-    var hr=div('hc-row','border-top:.5px solid var(--sep);margin-top:18px;padding-top:16px');
-    var socLabel=lv_soc+'%'+(bChW2>0?' ⚡':dischargeW>0?' ↓':'');
-    [{id:'hero-bat',v:socLabel,l:'Akku SOC',c:'var(--bl)',tip:'Ladestand.'},
-     {id:'hero-grd',v:lv_grd.toFixed(2)+' kW',l:'Netz',c:'var(--rd)',tip:'Netzbezug jetzt.'},
-     {v:nf(gv(todayE,'save')).toFixed(2)+' '+cur,l:'Heute gespart',c:'var(--gr)',tip:'Solar+Akku × Strompreis.'}
-    ].forEach(function(s,i){
-      if(i>0){var sp=div('','width:.5px;background:var(--sep)');hr.appendChild(sp);}
-      var item=div('hc-item');if(s.tip)item.onclick=function(){showTip(s.tip);};
-      var rv=div('hc-v','color:'+s.c);if(s.id)rv.id=s.id;rv.textContent=s.v;item.appendChild(rv);
-      var rl=div('hc-l');rl.textContent=s.l;item.appendChild(rl);hr.appendChild(item);
-    });hcard.appendChild(hr);f.appendChild(hcard);
+    var fw=pvW2,dw=dischargeW,bChWr=bChW2;
+    var _cg2=ctGridW();
+    var lw=_cg2!=null?_cg2:(_fx?(foxessLive.gridW-foxessLive.feedinW):(lv?lv.venus&&lv.venus.load||0:0));
+    var hasRealGrid2=_cg2!=null||_fx||!!lv;
+    var hausW=houseBalanceW(fw,dw,bChWr,lw,hasRealGrid2);
+    var netExport=_fx?(foxessLive.feedinW>foxessLive.gridW):(lw<0);
+    var autarkie=hausW>0?Math.min(100,Math.round((hausW-Math.max(0,lw))/hausW*100)):0;
+    var cSol='#F5A623',cBat=socCol(lv_soc),cHaus='#AF52DE',cNet=netExport?'#34C759':'#FF3B30';
+    var ageSec=lastFetch?Math.round((Date.now()-lastFetch)/1000):null;
+    var ageStr=ageSec===null?'':(ageSec<5?'gerade ✓':'vor '+(ageSec<60?ageSec+'s':Math.round(ageSec/60)+'min'));
+    var eyeHtml='<span class="hc-ey" style="color:var(--t3)"><span class="ldot"></span> '+(lv.source==='demo'?'Demo':'Live')+(ageStr?' &nbsp;&middot;&nbsp; <span style="opacity:.8">'+ageStr+'</span>':'')+'</span>';
+    var hcard=div('hc fu2');hcard.id='lv-hcard';
+    hcard.style.cssText+='background:'+grad+';box-shadow:0 0 0 1px var(--card-border),0 8px 32px '+accentGlow+';overflow:hidden';
+    hcard.innerHTML=_buildHeroC(lv_soc,heroW,isSolar,isBatCharging,isDischarging,fw,dw,bChWr,lw,hausW,netExport,autarkie,cSol,cBat,cHaus,cNet,heroCol,eyeHtml);
+    f.appendChild(hcard);
   } else {
     var nc=div('','background:var(--card);border-radius:var(--r);padding:28px 20px;text-align:center;border:1px solid var(--card-border);margin-bottom:12px');nc.classList.add('fu2');
     nc.innerHTML='<div style="font-size:44px;margin-bottom:12px">🔌</div><div style="font-size:18px;font-weight:600;margin-bottom:8px">Noch nicht verbunden</div><div style="font-size:14px;color:var(--t3);margin-bottom:20px;line-height:1.5">Verbinde deinen Marstek-Akku um Live-Daten zu sehen.</div>'
@@ -2478,93 +2511,6 @@ function rHome(){
   if(demo){var ban=div('fu2','background:var(--orb);border:1px solid rgba(255,149,0,.3);border-radius:var(--rs);padding:11px 16px;display:flex;align-items:center;gap:10px;margin-bottom:12px');var eb=document.createElement('button');eb.className='btn b-xs';eb.style.cssText='background:rgba(255,149,0,.15);color:var(--or)';eb.textContent='Beenden';eb.onclick=function(){showAlert('Demo beenden','Zum Anmeldebildschirm?',[{label:'Abbrechen',bold:true,fn:closeAlert},{label:'Beenden',fn:function(){stopDemo();closeAlert();el('app').style.display='none';el('ls').style.display='block';}}]);};ban.innerHTML='<span style="font-size:20px">🎭</span><div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--or)">Demo — Zahlen sind live</div></div>';ban.appendChild(eb);f.appendChild(ban);}
 
   var thd=div('fu3','display:flex;align-items:center;justify-content:space-between;margin:16px 2px 10px');var tt=div('','font-size:20px;font-weight:700');tt.textContent='Heute · '+fS(today());thd.appendChild(tt);var ab=document.createElement('button');ab.className='btn b-gh b-xs';ab.textContent='+ Eintragen';ab.onclick=openMan;thd.appendChild(ab);f.appendChild(thd);
-
-  // Animated SVG energy flow card
-  var _fxf=S.foxessEnabled&&!foxessIsStale();
-  var _skf=S.solakonEnabled&&solakonLive&&!solakonIsStale();
-  if(_fxf||_skf||lv||!piBridgeIsStale('powerrouter')){
-    var fw=combinedSolarW();
-    var dw=_fxf?foxessLive.batDischargeW:(lv?lv.battery&&lv.battery.dischargeW||0:0);
-    var bChW=_fxf?foxessLive.batChargeW:(lv&&lv.venus&&lv.venus.charge||0);
-    var _cg2=ctGridW();
-    var lw=_cg2!=null?_cg2:(_fxf?(foxessLive.gridW-foxessLive.feedinW):(lv?lv.venus&&lv.venus.load||0:0));
-    var hasRealGrid2=_cg2!=null||_fxf||!!lv;
-    var hausW=houseBalanceW(fw,dw,bChW,lw,hasRealGrid2);
-    var netExport=_fxf?(foxessLive.feedinW>foxessLive.gridW):(lw<0);
-    var autarkie=hausW>0?Math.min(100,Math.round((hausW-Math.max(0,lw))/hausW*100)):0;
-    var bv2=lv&&lv.battery;
-    var progStr='';
-    if(bv2&&fw>0&&bv2.cap>0){var rWh=(bv2.cap/1000)*(1-lv_soc/100)*1000;var mL=Math.round(rWh/(fw/60));if(mL>0&&mL<1440){var hh=Math.floor(mL/60),mm=mL%60;progStr='⏱ Voll in ~'+(hh>0?hh+'h ':'')+(mm>0?mm+'min':'');}}
-    else if(bv2&&dw>0&&bv2.cap>0&&lv_soc>0){var rWh2=(bv2.cap/1000)*(lv_soc/100)*1000;var mL2=Math.round(rWh2/(dw/60));if(mL2>0&&mL2<2880){var un=new Date(Date.now()+mL2*60000);progStr='🌙 Reicht bis ~'+un.getHours()+':'+(un.getMinutes()<10?'0':'')+un.getMinutes()+' Uhr';}}
-    // 5-node star: Solar(top) — Netz(left) — Haus(center) — Akku(right)
-    // SVG viewBox 320×200, center=(160,110), nodes at fixed coords
-    var cSol='#F5A623',cBat=socCol(lv_soc),cHaus='#AF52DE',cNet=netExport?'#34C759':'#FF3B30';
-    var W=320,H=200,R=27;
-    var nSol={x:160,y:50},nNet={x:44,y:140},nAku={x:276,y:140},nHaus={x:160,y:140};
-    function fline(x1,y1,x2,y2,col,anim,watts){
-      var on=!!anim;
-      var dur=on?(watts>1200?'0.45s':watts>600?'0.62s':'0.85s'):'';
-      var glow=on?'<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+col+'" stroke-width="9" stroke-linecap="round" opacity=".09"/>':'';
-      return glow+'<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2
-        +'" stroke="'+col+'" stroke-width="'+(on?'2.5':'1.5')+'" stroke-linecap="round" opacity="'+(on?'.9':'.09')+'"'
-        +(on?' stroke-dasharray="6 4" class="fl-line '+anim+'" style="animation-duration:'+dur+'"':'')+'/>';
-    }
-    function fnode(cx,cy,ic,val,lbl,col,above,idx){
-      var vY=above?(cy-R-17):(cy+R+15);
-      var lY=above?(cy-R-5):(cy+R+27);
-      var delay=(idx||0)*70+'ms';
-      return '<g class="fl-node-g" style="animation-delay:'+delay+'">'
-        +'<circle cx="'+cx+'" cy="'+cy+'" r="'+(R+9)+'" fill="'+col+'" opacity=".05"/>'
-        +'<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+col+'" opacity=".14"/>'
-        +'<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="none" stroke="'+col+'" stroke-width="1.8" opacity=".55"/>'
-        +'<text x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle" font-size="21">'+ic+'</text>'
-        +'<text x="'+cx+'" y="'+vY+'" text-anchor="middle" font-size="12" font-weight="700" fill="'+col+'" letter-spacing="-.3">'+val+'</text>'
-        +'<text x="'+cx+'" y="'+lY+'" text-anchor="middle" font-size="10" fill="#8E8E98">'+lbl+'</text>'
-        +'</g>';
-    }
-    function midBadge(x1,y1,x2,y2,txt,col){
-      var mx=(x1+x2)/2,my=(y1+y2)/2+(y1===y2?-13:8);
-      var tw=txt.length*6.5+14;
-      return '<rect x="'+(mx-tw/2)+'" y="'+(my-9)+'" width="'+tw+'" height="18" rx="9" fill="'+col+'" opacity=".18"/>'
-        +'<rect x="'+(mx-tw/2)+'" y="'+(my-9)+'" width="'+tw+'" height="18" rx="9" fill="none" stroke="'+col+'" stroke-width=".8" opacity=".45"/>'
-        +'<text x="'+mx+'" y="'+(my+5)+'" text-anchor="middle" font-size="10.5" font-weight="700" fill="'+col+'">'+txt+'</text>';
-    }
-    var flowCard=div('card fu3','padding:18px 16px 16px;border-color:rgba(255,255,255,.08)');
-    var fcHeader=div('','display:flex;align-items:center;justify-content:space-between;margin-bottom:10px');
-    var fcTitle=div('','font-size:13px;font-weight:700;color:var(--t1);letter-spacing:-.2px');
-    fcTitle.textContent='Energiefluss';
-    var fcBadge=div('','font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px;background:rgba(48,209,88,.12);color:#30D158');
-    fcBadge.textContent='● Live';
-    fcHeader.appendChild(fcTitle);fcHeader.appendChild(fcBadge);flowCard.appendChild(fcHeader);
-    var svgWrap=div('','overflow:visible');svgWrap.id='lv-flow';
-    svgWrap.innerHTML='<svg width="100%" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
-      +fline(nSol.x,nSol.y+R,nHaus.x,nHaus.y-R,fw>10?cSol:'rgba(255,255,255,.1)',fw>10?'active-d':'',fw)
-      +fline(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(lw)>10?cNet:'rgba(255,255,255,.1)',Math.abs(lw)>10?(netExport?'active-l':'active-r'):'',Math.abs(lw))
-      +fline(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,(bChW>10||dw>10)?cBat:'rgba(255,255,255,.1)',(bChW>10)?'active-r':(dw>10?'active-l':''),bChW>10?bChW:dw)
-      +(Math.abs(lw)>10?midBadge(nNet.x+R,nNet.y,nHaus.x-R,nHaus.y,Math.abs(Math.round(lw))+'W',cNet):'')
-      +((bChW>10||dw>10)?midBadge(nHaus.x+R,nHaus.y,nAku.x-R,nAku.y,Math.round(bChW>10?bChW:dw)+'W',cBat):'')
-      +fnode(nSol.x,nSol.y,'☀️',fw+'W','Solar',cSol,true,0)
-      +fnode(nNet.x,nNet.y,'⚡',Math.abs(Math.round(lw))+'W',netExport?'Einspeisung':'Netz',cNet,false,1)
-      +fnode(nHaus.x,nHaus.y,'🏠',hausW!=null?hausW+'W':'—','Haus',cHaus,false,2)
-      +fnode(nAku.x,nAku.y,'🔋',lv_soc+'%',bChW>10?'lädt':dw>10?'entlädt':'Akku',cBat,false,3)
-      +'</svg>';
-    flowCard.appendChild(svgWrap);
-    if(autarkie>0||progStr){
-      var fcFoot=div('','margin-top:12px;padding-top:10px;border-top:.5px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:12px');
-      if(autarkie>0){
-        var aWrap=div('','flex:1');
-        aWrap.innerHTML='<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:5px">'
-          +'<span style="font-size:11px;color:var(--t4);font-weight:500">Autarkie</span>'
-          +'<span style="font-size:14px;font-weight:700;color:#30D158;letter-spacing:-.3px">'+autarkie+'%</span></div>'
-          +'<div style="height:4px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden">'
-          +'<div style="height:4px;width:'+autarkie+'%;background:linear-gradient(90deg,#34C759,#30D158);border-radius:4px;transition:width .6s cubic-bezier(.34,1.4,.64,1)"></div></div>';
-        fcFoot.appendChild(aWrap);
-      }
-      if(progStr){var ps=div('','font-size:11.5px;color:var(--bl);font-weight:500;white-space:nowrap;flex-shrink:0');ps.textContent=progStr;fcFoot.appendChild(ps);}
-      flowCard.appendChild(fcFoot);
-    }
-    f.appendChild(flowCard);
-  }
 
   var tg=div('tg fu3');
   var acSol=nf(acc.date===today()?acc.solar:0); // Solar nur aus FoxESS-acc, kein Fallback auf Einträge
