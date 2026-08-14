@@ -586,7 +586,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
       <div class="onb-chips">
         <span class="onb-chip">Marstek Venus</span>
         <span class="onb-chip">FoxESS M1</span>
-        <span class="onb-chip">Solakon</span>
+
         <span class="onb-chip">nedap PowerRouter</span>
       </div>
     </div>
@@ -808,7 +808,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-14 15:19';
+var APP_VERSION='v1.0 - 2026-08-14 15:26';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1862,30 +1862,6 @@ function loadDevices(token) {
         (function(id,name,model){row.onclick=function(){pickDev(id,name,model);};}(id,name,model));
         wrap.appendChild(row);
       });
-      // CT002 devices — grid sensor
-      var ctDevs=list.filter(function(d){return d.type==='HME-4';});
-      if(ctDevs.length){
-        var ctHd=div('','font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:12px 18px 4px');
-        ctHd.textContent='⚡ Netz-Sensor (CT002)';body.appendChild(ctHd);
-        var ctWrap=div('card');body.appendChild(ctWrap);
-        ctDevs.forEach(function(d,i){
-          if(i>0)ctWrap.appendChild(sepEl());
-          var id=d.devid||d.mac||d.sn||String(i),name=d.name||d.sn||'CT002',model=d.type||'HME-4';
-          var ctEnabled=S.ct002Id===id;
-          var row=div('row');
-          var support=d.is_support===1||d.is_support==='1';
-          row.innerHTML='<div class="ric" style="background:var(--tlb)">⚡</div>'
-            +'<div class="rb"><div class="rl">'+esc(name)+'</div>'
-            +'<div class="rs">Netz-Sensor &middot; '+(support?'Aktiv':'Inaktiv (is_support:0)')+'</div></div>'
-            +'<div style="font-size:22px;padding-right:4px">'+(ctEnabled?'✅':'⬜')+'</div>';
-          row.onclick=function(){
-            S.ct002Id=ctEnabled?'':id;svS();
-            toast(ctEnabled?'CT002 deaktiviert':'CT002 als Netz-Sensor aktiviert');
-            loadDevices();
-          };
-          ctWrap.appendChild(row);
-        });
-      }
       var doneBtn=document.createElement('button');doneBtn.className='btn b-fi';doneBtn.style.cssText='width:calc(100% - 32px);margin:12px 16px 0';doneBtn.textContent='Fertig';
       doneBtn.onclick=function(){hideOv('dv');schedFetch();rSet();};body.appendChild(doneBtn);
       showOv('dv');
@@ -2609,7 +2585,7 @@ function rHome(){
   var thd=div('fu3','display:flex;align-items:center;justify-content:space-between;margin:16px 2px 10px');var tt=div('','font-size:20px;font-weight:700');tt.textContent='Heute · '+fS(today());thd.appendChild(tt);var ab=document.createElement('button');ab.className='btn b-gh b-xs';ab.textContent='+ Eintragen';ab.onclick=openMan;thd.appendChild(ab);f.appendChild(thd);
 
   var tg=div('tg fu3');
-  var acSol=nf(acc.date===today()?acc.solar:0); // Solar nur aus FoxESS-acc, kein Fallback auf Einträge
+  var acSol=nf(acc.date===today()&&acc.solar>0?acc.solar:(guestMode&&todayE?gv(todayE,'solar'):0));
   var acBat=acc.date===today()?nf(acc.bat):nf(gv(todayE,'bat'));
   var acGrd=acc.date===today()?nf(acc.grid):nf(gv(todayE,'grid'));
   var acHaus=acc.date===today()?nf(acc.haus):0;
@@ -2976,33 +2952,6 @@ function rSrc(){
     var fxNc=div('grad-card fu2','background:linear-gradient(135deg,#f5a623,#e8870a);padding:20px;margin-bottom:12px;text-align:center');
     fxNc.innerHTML='<div style="font-size:32px;margin-bottom:8px">☀️</div><div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:4px">FoxESS M1 800</div><div style="font-size:13px;color:rgba(255,255,255,.75)">Warte auf Verbindung…</div>';
     f.appendChild(fxNc);
-  }
-  // Solakon Banner
-  var _skxs=S.solakonEnabled&&solakonLive&&!solakonIsStale();
-  if(_skxs){
-    var skBanner=div('grad-card fu2','background:linear-gradient(135deg,#34C759,#1a7a3c);padding:20px;margin-bottom:12px');
-    var skTop=div('','display:flex;align-items:center;justify-content:space-between;margin-bottom:12px');
-    var skInfo=div('');
-    skInfo.innerHTML='<div style="font-size:13px;opacity:.7;margin-bottom:4px">Solakon · FoxESS M1 800</div>'
-      +'<div style="font-size:36px;font-weight:800;color:#fff;line-height:1"><span id="sk-pv">'+Math.round(solakonLive.pvW)+'</span><span style="font-size:16px;font-weight:400;margin-left:4px">W</span></div>'
-      +'<div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px">Solarleistung aktuell</div>';
-    skTop.appendChild(skInfo);
-    var skIcon=div('','font-size:48px;opacity:.6');skIcon.textContent='⚡';skTop.appendChild(skIcon);
-    skBanner.appendChild(skTop);
-    var skStats=div('','display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:.5px solid rgba(255,255,255,.25);padding-top:12px');
-    [['sk-today',solakonLive.todayKwh.toFixed(2)+' kWh','Heute'],['sk-total',solakonLive.totalKwh.toFixed(0)+' kWh','Gesamt']].forEach(function(r){
-      var s=div('','text-align:center');s.innerHTML='<div id="'+r[0]+'" style="font-size:18px;font-weight:700;color:#fff">'+r[1]+'</div><div style="font-size:11px;color:rgba(255,255,255,.65);margin-top:2px">'+r[2]+'</div>';skStats.appendChild(s);
-    });
-    skBanner.appendChild(skStats);
-    f.appendChild(skBanner);
-  } else if(S.solakonEnabled){
-    var skNc=div('grad-card fu2','background:linear-gradient(135deg,#34C759,#1a7a3c);padding:20px;margin-bottom:12px;text-align:center');
-    skNc.innerHTML='<div style="font-size:32px;margin-bottom:8px">⚡</div>'
-      +'<div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:4px">Solakon · FoxESS M1 800</div>'
-      +((S.solakonRefreshToken||S.solakonAccessToken)?'<div style="font-size:13px;color:rgba(255,255,255,.75)">Verbinde…</div>'
-        :'<div style="font-size:13px;color:rgba(255,255,255,.9);font-weight:600">⚠️ Anmeldung nötig → Einstellungen</div>');
-    skNc.onclick=function(){openSolakonSettings();};
-    f.appendChild(skNc);
   }
 
   // PowerRouter Banner (nedap PR37S via Pi)
@@ -3399,17 +3348,6 @@ function rSet(){
   var devCard=div('card fu2');
   // Marstek
   devCard.appendChild(makeRow('🔋','var(--blb)','Marstek Akku',con?'✅ '+(S.marstekDeviceName||S.marstekEmail):'Tippen zum Anmelden',null,null,true,function(){if(con)loadDevices();else showOv('ml');}));
-  devCard.appendChild(sepEl());
-  // Solakon
-  var skRow=div('row','cursor:pointer');
-  var skHasToken=!!(S.solakonRefreshToken||S.solakonAccessToken);
-  var skStatus=S.solakonEnabled&&S.solakonDeviceId?'✅ '+S.solakonDeviceId+(skHasToken?'':' — Anmeldung nötig!'):'Tippen zum Einrichten';
-  var skColor=S.solakonEnabled&&!skHasToken?'var(--rd)':'var(--t3)';
-  skRow.innerHTML='<div class="ric" style="background:linear-gradient(135deg,#34C759,#248A3D)">⚡</div>'
-    +'<div class="rb"><div class="rl">Solakon (FoxESS M1 800)</div><div class="rs" style="color:'+skColor+'">'+skStatus+'</div></div>'
-    +'<span style="color:var(--t3);font-size:20px">›</span>';
-  skRow.onclick=function(){openSolakonSettings();};
-  devCard.appendChild(skRow);
   devCard.appendChild(sepEl());
   // Raspberry Pi Bridge (Wallbox/PowerRouter/CT002)
   var piRow=div('row','cursor:pointer');
