@@ -808,7 +808,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-14 15:26';
+var APP_VERSION='v1.0 - 2026-08-14 15:31';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1666,7 +1666,7 @@ function shareWrite(){
   if(!pins.length||!live)return;
   pins.forEach(function(p){
     var pd=Object.assign({},live);
-    if(!S.guestPerms||!S.guestPerms.showLive)pd=null;
+    if(S.guestPerms&&S.guestPerms.showLive===false)pd=null;
     ftch(VOLTLI_EDGE+'/share',{method:'POST',headers:{'Content-Type':'application/json','apikey':VOLTLI_KEY},
       body:JSON.stringify({action:'write',pin:p.pin,live_data:pd,
         entries:(S.guestPerms&&S.guestPerms.showHistory?E.slice(0,60):[]),
@@ -2540,9 +2540,10 @@ function rHome(){
     // Pi-bridge (lokal) als primäre Quelle, Marstek-Cloud als Fallback.
     // Echte Akku-Entladung = ongrid_power minus PV-Durchfluss (bei vollem Akku fließt PV direkt durch).
     var dischargeW=_fx?foxessLive.batDischargeW:(_mbl2?Math.max(0,_mbl2.discharge_w-_mbl2PvW):(lv?lv.battery&&lv.battery.dischargeW||0:0));
-    var bChW2=_fx?foxessLive.batChargeW:(_mbl2?_mbl2.charge_w:0);
+    var bChW2=_fx?foxessLive.batChargeW:(_mbl2?_mbl2.charge_w:(lv?lv.battery&&lv.battery.chargeW||0:0));
     if(!lv_soc&&_mbl2&&_mbl2.soc)lv_soc=_mbl2.soc;
     if(_fx&&!lv_soc&&foxessLive.soc)lv_soc=foxessLive.soc;
+    if(!pvW2&&lv&&lv.foxess&&lv.foxess.pvW>0)pvW2=lv.foxess.pvW;
     var isSolar=pvW2>10;
     var isBatCharging=bChW2>10;
     var isCharging=isSolar||isBatCharging;var isDischarging=dischargeW>10;
