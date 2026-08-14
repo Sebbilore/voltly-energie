@@ -789,7 +789,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-14 13:16';
+var APP_VERSION='v1.0 - 2026-08-14 13:21';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1559,10 +1559,13 @@ function patchHome(){
   var _mbl=marstekBatteryLocal(); // Marstek-Akku lokal über Pi — verlässlicher als Cloud
   // Jedes Akku-Gerät nur seine eigenen Messwerte — kein Fallback zwischen Geräten
   var lv_soc=_pfx?foxessLive.soc:(_mbl?_mbl.soc:(lv?lv.battery&&lv.battery.soc||0:0));
-  var chargeW=combinedSolarW(); // Solar: FoxESS/Solakon (eine Anlage) + PowerRouter (zweite Anlage), addiert
-  var balkW2=(lv&&lv.balkon&&lv.balkon.solar>0)?lv.balkon.solar*1000:0;chargeW+=balkW2;
-  var dischargeW=_pfx?foxessLive.batDischargeW:(_mbl?_mbl.discharge_w:(lv?lv.battery&&lv.battery.dischargeW||0:0)); // Akku: FoxESS oder Marstek (selber Akku)
-  var bChWp=_pfx?foxessLive.batChargeW:(_mbl?_mbl.charge_w:0);    // Akku-Laden (AC): nur FoxESS kennt das
+  var chargeW=combinedSolarW(); // Solar: FoxESS/Solakon + PowerRouter, addiert
+  var _mblPvW=_mbl?Math.max(0,_mbl.pv_power_w||0):0;
+  if(_mblPvW>0){chargeW+=_mblPvW;}
+  else{var balkW2=(lv&&lv.balkon&&lv.balkon.solar>0)?lv.balkon.solar*1000:0;chargeW+=balkW2;}
+  // Echte Akku-Entladung = ongrid_power minus PV-Durchfluss
+  var dischargeW=_pfx?foxessLive.batDischargeW:(_mbl?Math.max(0,_mbl.discharge_w-_mblPvW):(lv?lv.battery&&lv.battery.dischargeW||0:0));
+  var bChWp=_pfx?foxessLive.batChargeW:(_mbl?_mbl.charge_w:0);
   var isSolar=chargeW>10;var isBatCharging=bChWp>10;
   var isCharging=isSolar||isBatCharging;var isDischarging=dischargeW>10;
   var onGrad=isCharging||isDischarging;
@@ -2475,10 +2478,14 @@ function rHome(){
   var _sk=S.solakonEnabled&&solakonLive&&!solakonIsStale();
   if(_fx||_sk||lv||!piBridgeIsStale('powerrouter')){
     var pvW2=combinedSolarW();
-    var balkW=(lv&&lv.balkon&&lv.balkon.solar>0)?lv.balkon.solar*1000:0;pvW2+=balkW;
     var _mbl2=marstekBatteryLocal();
-    // Pi-bridge (lokal) als primäre Quelle, Marstek-Cloud als Fallback
-    var dischargeW=_fx?foxessLive.batDischargeW:(_mbl2?_mbl2.discharge_w:(lv?lv.battery&&lv.battery.dischargeW||0:0));
+    // Marstek-PV (lokal) hat Vorrang vor Cloud-balkon; beides ist dieselbe Quelle
+    var _mbl2PvW=_mbl2?Math.max(0,_mbl2.pv_power_w||0):0;
+    if(_mbl2PvW>0){pvW2+=_mbl2PvW;}
+    else{var balkW=(lv&&lv.balkon&&lv.balkon.solar>0)?lv.balkon.solar*1000:0;pvW2+=balkW;}
+    // Pi-bridge (lokal) als primäre Quelle, Marstek-Cloud als Fallback.
+    // Echte Akku-Entladung = ongrid_power minus PV-Durchfluss (bei vollem Akku fließt PV direkt durch).
+    var dischargeW=_fx?foxessLive.batDischargeW:(_mbl2?Math.max(0,_mbl2.discharge_w-_mbl2PvW):(lv?lv.battery&&lv.battery.dischargeW||0:0));
     var bChW2=_fx?foxessLive.batChargeW:(_mbl2?_mbl2.charge_w:0);
     if(!lv_soc&&_mbl2&&_mbl2.soc)lv_soc=_mbl2.soc;
     if(_fx&&!lv_soc&&foxessLive.soc)lv_soc=foxessLive.soc;
