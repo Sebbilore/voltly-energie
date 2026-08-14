@@ -789,7 +789,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-14 13:11';
+var APP_VERSION='v1.0 - 2026-08-14 13:16';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1349,11 +1349,11 @@ function marstekBatteryLocal(){
   if(piBridgeIsStale('marstek_battery'))return null;
   return piBridgeLive.marstek_battery;
 }
-// Hausverbrauch = Solar + Akku-Entladung - Akku-Ladung + Netzbezug — nur wenn der Netzbezug
-// eine echte Messung ist (CT002 oder FoxESS-eigene Messung). Keine Schätzung — sonst lieber null.
+// Hausverbrauch = Solar + Akku-Entladung - Akku-Ladung + Netzbezug
+// gridW: positiv = Bezug, negativ = Einspeisung. Math.max(0,...) nur außen (kein negativer Haus).
 function houseBalanceW(solarW,dischargeW,chargeW,gridW,hasRealGrid){
   if(!hasRealGrid)return null;
-  return Math.max(0,Math.round(solarW+dischargeW-chargeW+Math.max(0,gridW)));
+  return Math.max(0,Math.round(solarW+dischargeW-chargeW+gridW));
 }
 
 /* ── FoxESS MD5 (minimal, RFC1321) ── */
@@ -2476,8 +2476,11 @@ function rHome(){
   if(_fx||_sk||lv||!piBridgeIsStale('powerrouter')){
     var pvW2=combinedSolarW();
     var balkW=(lv&&lv.balkon&&lv.balkon.solar>0)?lv.balkon.solar*1000:0;pvW2+=balkW;
-    var dischargeW=_fx?foxessLive.batDischargeW:(lv?lv.battery&&lv.battery.dischargeW||0:0);
-    var bChW2=_fx?foxessLive.batChargeW:0;
+    var _mbl2=marstekBatteryLocal();
+    // Pi-bridge (lokal) als primäre Quelle, Marstek-Cloud als Fallback
+    var dischargeW=_fx?foxessLive.batDischargeW:(_mbl2?_mbl2.discharge_w:(lv?lv.battery&&lv.battery.dischargeW||0:0));
+    var bChW2=_fx?foxessLive.batChargeW:(_mbl2?_mbl2.charge_w:0);
+    if(!lv_soc&&_mbl2&&_mbl2.soc)lv_soc=_mbl2.soc;
     if(_fx&&!lv_soc&&foxessLive.soc)lv_soc=foxessLive.soc;
     var isSolar=pvW2>10;
     var isBatCharging=bChW2>10;
