@@ -808,7 +808,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-14 15:31';
+var APP_VERSION='v1.0 - 2026-08-18 15:28';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
@@ -1647,9 +1647,14 @@ function patchHome(){
     patchTileVal('aut',autQ2,0);
   }
 }
-// Always refresh when app comes back to foreground (even if interval is running)
+// Always refresh when app comes back to foreground (even if interval is running) —
+// mobile browsers throttle/suspend setInterval while hidden, so a full catch-up
+// sync (not just Marstek) is needed the moment the tab becomes visible again.
 document.addEventListener('visibilitychange',function(){
-  if(!document.hidden&&S.marstekToken&&Date.now()-lastFetch>4000){fetchMarstek(true);}
+  if(document.hidden)return;
+  if(Date.now()-lastFetch<=4000)return;
+  if(guestMode){pollGuest();return;}
+  if(S.marstekToken||S.foxessEnabled||S.solakonEnabled)schedFetch();
 });
 
 /* ── Guest Share ── */
@@ -1687,22 +1692,25 @@ function loadGuestVisits(pin,cb){
   },10).then(function(r){return r.json();}).then(cb).catch(function(){cb({visits:[]});});
 }
 
+var _guestPin=null;
+function pollGuest(){
+  if(!_guestPin)return;
+  shareRead(_guestPin,function(d){
+    if(d.error){toast('Ungültiger PIN');return;}
+    live=d.live_data;
+    if(live)live.source='guest';
+    lastFetch=new Date(d.updated_at).getTime()||Date.now();
+    if(d.entries&&d.entries.length){E=d.entries;svE();}
+    if(curTab==='home')patchHome();if(curTab==='trnd')rTrnd();
+    if(curTab==='src'&&!patchSrc())rSrc();
+  });
+}
 function startGuestMode(pin){
   guestMode=true;
   live=null;
+  _guestPin=pin;
   // Show settings tab for guests (limited view)
   var setBt=el('bt-set'); if(setBt) setBt.style.display='';
-  var pollGuest=function(){
-    shareRead(pin,function(d){
-      if(d.error){toast('Ungültiger PIN');return;}
-      live=d.live_data;
-      if(live)live.source='guest';
-      lastFetch=new Date(d.updated_at).getTime()||Date.now();
-      if(d.entries&&d.entries.length){E=d.entries;svE();}
-      if(curTab==='home')patchHome();if(curTab==='trnd')rTrnd();
-      if(curTab==='src'&&!patchSrc())rSrc();
-    });
-  };
   pollGuest();
   fi=setInterval(pollGuest,(S.fetchSec||5)*1000);
 }
