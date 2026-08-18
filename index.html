@@ -61,12 +61,16 @@
 </script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+::selection{background:var(--or);color:#000}
+:focus-visible{outline:2px solid var(--or);outline-offset:3px;border-radius:6px}
+.tab:focus-visible,.chip:focus-visible,.btn:focus-visible{outline-offset:2px}
+.tog:focus-visible .tog-tr{outline:2px solid var(--or);outline-offset:2px}
 html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif;
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-optical-sizing:auto;
   color:#F0F0F5;overflow:hidden;background:#0F0F12}
 :root{
   --bg:#0F0F12;--card:#1A1A1E;--sep:rgba(255,255,255,.07);--sep2:rgba(255,255,255,.10);
-  --t:#F0F0F5;--t2:#D0D0D8;--t3:#8E8E9A;--t4:#48484E;
+  --t:#F0F0F5;--t2:#D0D0D8;--t3:#8E8E9A;--t4:#68686F;
   --f:#141418;--f2:#222228;
   --or:#F5A623;--orb:rgba(245,166,35,.12);--ord:#C47A00;
   --bl:#648CFF;--blb:rgba(100,140,255,.12);
@@ -77,15 +81,17 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
   --r:20px;--rs:14px;
   --tb-bg:rgba(15,15,18,.88);
   --card-border:rgba(255,255,255,.06);
+  --tile-bg:#141417;
 }
 @media(prefers-color-scheme:light){
   :root:not([data-theme="dark"]):not([data-theme="auto"]){
     --bg:#0F0F12;--card:#1A1A1E;--sep:rgba(255,255,255,.07);--sep2:rgba(255,255,255,.10);
-    --t:#F0F0F5;--t2:#D0D0D8;--t3:#8E8E9A;--t4:#48484E;
+    --t:#F0F0F5;--t2:#D0D0D8;--t3:#8E8E9A;--t4:#68686F;
     --f:#141418;--f2:#222228;
     --orb:rgba(245,166,35,.12);--blb:rgba(100,140,255,.12);--grb:rgba(52,199,89,.12);
     --rdb:rgba(255,59,48,.12);--pub:rgba(175,82,222,.12);--tlb:rgba(90,200,250,.12);
     --tb-bg:rgba(15,15,18,.88);
+    --tile-bg:#141417;
   }
 }
 :root[data-theme="light"]{
@@ -100,6 +106,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
   --tl:#5AC8FA;--tlb:#EBF8FF;
   --tb-bg:rgba(248,248,250,.95);
   --card-border:rgba(0,0,0,.06);
+  --tile-bg:#fff;
 }
 /* ── High-Contrast ── */
 :root[data-contrast]{--t3:#A0A0A8;--t4:#6A6A72;}
@@ -170,7 +177,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
 .hc-l{font-size:11px;color:var(--t3);margin-top:1px}
 /* ── Tiles ── */
 .tg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-.tile{background:#141417;border-radius:var(--r);padding:18px 16px 16px;
+.tile{background:var(--tile-bg);border-radius:var(--r);padding:18px 16px 16px;
   border:1px solid rgba(255,255,255,.07);
   display:flex;flex-direction:column;cursor:pointer;position:relative;overflow:hidden;
   -webkit-user-select:none;user-select:none;touch-action:manipulation}
@@ -210,6 +217,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
   padding:13px 24px;transition:transform .18s cubic-bezier(.34,1.56,.64,1),opacity .12s,filter .15s;
   will-change:transform;-webkit-user-select:none;user-select:none;touch-action:manipulation}
 .btn:active{transform:scale(.93);opacity:.85}
+.btn:disabled,.btn[disabled]{opacity:.38;cursor:not-allowed;pointer-events:none}
 .b-or{background:var(--or);color:#000}
 .b-gr{background:var(--gr);color:#000}
 .b-fi{background:var(--f2);color:var(--t);border:1px solid var(--sep2)}
@@ -397,15 +405,20 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Displ
 #lv-hcard{transition:box-shadow .7s ease,background .5s ease}
 
 /* ── OLED Mobile Theme ── */
+/* Scoped to :not([data-theme="light"]) so an explicit light-theme choice
+   (Einstellungen → Hell) is never forced back to black on phones. */
 @media(max-width:900px){
-  :root{
+  :root:not([data-theme="light"]){
     --bg:#000!important;
     --card:#0d0d0d!important;
     --card-border:rgba(255,255,255,.08)!important;
     --sep:rgba(255,255,255,.06)!important;
+    --tile-bg:#0d0d0d!important;
   }
-  #sc-home,#hb,.scr{background:#000!important}
-  #lv-hcard{
+  html:not([data-theme="light"]) #sc-home,
+  html:not([data-theme="light"]) #hb,
+  html:not([data-theme="light"]) .scr{background:#000!important}
+  html:not([data-theme="light"]) #lv-hcard{
     background:#000!important;
     box-shadow:none!important;
     border:none!important;
@@ -808,7 +821,7 @@ function updateAcc(chargeW,dischargeW,loadW,hausW){
   svAcc();
 }
 
-var APP_VERSION='v1.0 - 2026-08-18 15:28';
+var APP_VERSION='v1.0 - 2026-08-18 15:37';
 
 var DEF = { marstekEmail:'', marstekToken:'', marstekDeviceId:'', marstekDeviceName:'',
   marstekDeviceIds:[], ct002Id:'', // multiple selected device IDs
